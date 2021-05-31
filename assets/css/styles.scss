@@ -489,6 +489,9 @@ button {
       border-color: var(--first-color);
     }
   }
+  .left {
+    margin-left: auto;
+  }
   &__button {
     display: block;
     background-color: var(--first-color);
@@ -502,9 +505,39 @@ button {
     transition: 0.2s ease-out;
     transform-origin: top right;
     box-shadow: 7px 7px 17px #e6e6e6, -7px -7px 17px #f1f1f1;
-    // &:hover {
-    //   background-color: var(--secondary-color);
-    // }
+  }
+  .custom-btn {
+    transition: all 0.3s ease;
+    position: relative;
+  }
+
+  .btn-15 {
+    background: var(--first-color);
+    border: none;
+    z-index: 1;
+  }
+  .btn-15:after {
+    position: absolute;
+    content: '';
+    width: 0;
+    height: 100%;
+    top: 0;
+    right: 0;
+    z-index: -1;
+    background-color: var(--secondary-color);
+    border-radius: 5px;
+
+    transition: all 0.3s ease;
+  }
+  .btn-15:hover {
+    color: #fff;
+  }
+  .btn-15:hover:after {
+    left: 0;
+    width: 100%;
+  }
+  .btn-15:active {
+    top: 2px;
   }
 }
 /* ===== FOOTER=====*/
@@ -688,37 +721,3 @@ button {
   }
 }
 // ----------
-/* 15 */
-.custom-btn {
-  transition: all 0.3s ease;
-  position: relative;
-}
-
-.btn-15 {
-  background: var(--first-color);
-  border: none;
-  z-index: 1;
-}
-.btn-15:after {
-  position: absolute;
-  content: '';
-  width: 0;
-  height: 100%;
-  top: 0;
-  right: 0;
-  z-index: -1;
-  background-color: var(--secondary-color);
-  border-radius: 5px;
-
-  transition: all 0.3s ease;
-}
-.btn-15:hover {
-  color: #fff;
-}
-.btn-15:hover:after {
-  left: 0;
-  width: 100%;
-}
-.btn-15:active {
-  top: 2px;
-}

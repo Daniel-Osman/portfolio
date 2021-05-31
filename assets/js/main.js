@@ -1,14 +1,3 @@
-const tl = gsap.timeline({ default: { duration: 0.1 } });
-gsap.from('.nav__item', {
-  y: 50,
-  stagger: 0.2,
-  opacity: 0,
-  ease: 'expo.inout',
-});
-document.querySelector('.nav__toggle').addEventListener('click', () => {
-  document.querySelector('.nav__menu').addEventListener('click', () => {});
-});
-
 /*===== MENU SHOW =====*/
 const showMenu = (toggleId, navId) => {
   const toggle = document.getElementById(toggleId),
@@ -64,13 +53,6 @@ function scrollHeader() {
   else header.classList.remove('scroll-header');
 }
 window.addEventListener('scroll', scrollHeader);
-// const lis = document.querySelector('.nav__list');
-// const clickToggle = document.querySelector('.nav__toggle');
-// clickToggle.addEventListener('click', () => {
-//   lis.style.display = 'block';
-//   gsap.from('.nav__item', { duration: 1, y: 100, stagger: 0.3, opacity: 0 });
-// });
-// gsap.from('.nav__item', { duration: 1, y: 100, stagger: 0.3, opacity: 0 });
 
 // mit it up
 const mixer = mixitup('.portfolio', {

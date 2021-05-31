@@ -596,6 +596,10 @@ button {
   border-color: var(--first-color);
 }
 
+.contact .left {
+  margin-left: auto;
+}
+
 .contact__button {
   display: block;
   background-color: var(--first-color);
@@ -612,6 +616,45 @@ button {
           transform-origin: top right;
   -webkit-box-shadow: 7px 7px 17px #e6e6e6, -7px -7px 17px #f1f1f1;
           box-shadow: 7px 7px 17px #e6e6e6, -7px -7px 17px #f1f1f1;
+}
+
+.contact .custom-btn {
+  -webkit-transition: all 0.3s ease;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.contact .btn-15 {
+  background: var(--first-color);
+  border: none;
+  z-index: 1;
+}
+
+.contact .btn-15:after {
+  position: absolute;
+  content: '';
+  width: 0;
+  height: 100%;
+  top: 0;
+  right: 0;
+  z-index: -1;
+  background-color: var(--secondary-color);
+  border-radius: 5px;
+  -webkit-transition: all 0.3s ease;
+  transition: all 0.3s ease;
+}
+
+.contact .btn-15:hover {
+  color: #fff;
+}
+
+.contact .btn-15:hover:after {
+  left: 0;
+  width: 100%;
+}
+
+.contact .btn-15:active {
+  top: 2px;
 }
 
 /* ===== FOOTER=====*/
@@ -795,45 +838,5 @@ button {
     width: 500px;
     right: 24%;
   }
-}
-
-/* 15 */
-.custom-btn {
-  -webkit-transition: all 0.3s ease;
-  transition: all 0.3s ease;
-  position: relative;
-}
-
-.btn-15 {
-  background: var(--first-color);
-  border: none;
-  z-index: 1;
-}
-
-.btn-15:after {
-  position: absolute;
-  content: '';
-  width: 0;
-  height: 100%;
-  top: 0;
-  right: 0;
-  z-index: -1;
-  background-color: var(--secondary-color);
-  border-radius: 5px;
-  -webkit-transition: all 0.3s ease;
-  transition: all 0.3s ease;
-}
-
-.btn-15:hover {
-  color: #fff;
-}
-
-.btn-15:hover:after {
-  left: 0;
-  width: 100%;
-}
-
-.btn-15:active {
-  top: 2px;
 }
 /*# sourceMappingURL=styles.css.map */
