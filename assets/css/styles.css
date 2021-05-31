@@ -605,7 +605,6 @@ button {
   -webkit-box-direction: reverse;
       -ms-flex-flow: row-reverse;
           flex-flow: row-reverse;
-  background-color: var(--first-color);
 }
 
 .contact__button {
