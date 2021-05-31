@@ -580,21 +580,36 @@
             </div>
           </div>
 
-          <form action="" class="contact__form">
+          <form
+            name="contact"
+            method="POST"
+            data-netlify="true"
+            class="contact__form"
+          >
             <div class="contact__inputs">
-              <input type="text" placeholder="Name" class="contact__input" />
-              <input type="mail" placeholder="Email" class="contact__input" />
+              <input
+                type="text"
+                placeholder="Name"
+                class="contact__input"
+                name="name"
+              />
+              <input
+                type="mail"
+                placeholder="Email"
+                class="contact__input"
+                name="email"
+              />
             </div>
 
             <textarea
               placeholder="message"
-              name=""
+              name="message"
               id=""
               cols="0"
               rows="10"
               class="contact__input"
             ></textarea>
-
+            <div data-netlify-recaptcha="true"></div>
             <button type="submit" class="contact__button button__send">
               <span class="default">Let's Talk</span>
               <div class="left"></div>
