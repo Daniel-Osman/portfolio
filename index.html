@@ -580,28 +580,27 @@
             </div>
           </div>
 
-          <form
-            name="contact"
-            action="POST"
-            data-netlify="true"
-            class="contact__form"
-          >
+          <form netlify class="contact__form">
             <div class="contact__inputs">
               <input
                 type="text"
                 placeholder="Name"
                 class="contact__input"
                 name="name"
+                required
               />
               <input
-                type="mail"
+                type="email"
                 placeholder="Email"
                 class="contact__input"
                 name="email"
+                required
               />
             </div>
 
             <textarea
+              type="text"
+              required
               placeholder="message"
               name="message"
               id=""
@@ -609,7 +608,7 @@
               rows="10"
               class="contact__input"
             ></textarea>
-            <div data-netlify-recaptcha="true"></div>
+            <div data-netlify-recaptcha="true" required></div>
             <button type="submit" class="contact__button button__send">
               <span class="default">Let's Talk</span>
               <div class="left"></div>
