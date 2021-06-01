@@ -63,3 +63,38 @@ const mixer = mixitup('.portfolio', {
     duration: 400,
   },
 });
+/*==================== SCROLL REVEAL ANIMATION ====================*/
+
+/*===== SCROLL REVEAL ANIMATION =====*/
+const sr = ScrollReveal({
+  origin: 'bottom',
+  distance: '80px',
+  duration: 2000,
+});
+
+/*SCROLL HOME*/
+sr.reveal('.home__title', {});
+
+// sr.reveal('.home__scroll', { delay: 200 });
+// sr.reveal('.home__img', { origin: 'right', delay: 400 });
+
+/*SCROLL ABOUT*/
+sr.reveal('.about__img', { delay: 500 });
+sr.reveal('.about__subtitle', { delay: 300 });
+sr.reveal('.about__profession', { delay: 400 });
+sr.reveal('.about__text', { delay: 500 });
+sr.reveal('.about__social-icon', { delay: 1000, interval: 200 });
+
+/*SCROLL SKILLS*/
+sr.reveal('.skills__subtitle', {});
+sr.reveal('.skill-content', { distance: '20px', delay: 50, interval: 100 });
+sr.reveal('.skill-img', { delay: 400, interval: 300 });
+
+/*SCROLL PORTFOLIO*/
+sr.reveal('.portfolio__img', { interval: 100 });
+
+/*SCROLL CONTACT*/
+sr.reveal('.contact__subtitle', {});
+sr.reveal('.contact__text , .whatsapp ,.telegram ,.email', { interval: 200 });
+sr.reveal('.contact__input', { delay: 400 });
+sr.reveal('.contact__button', { delay: 600 });
