@@ -714,11 +714,7 @@ button {
 @media screen and (min-height: 721px) {
   .home {
     &__container {
-      height: 640px;
-    }
-    &__img {
-      width: 500px;
-      right: 24%;
+      height: 90vh;
     }
   }
 }
