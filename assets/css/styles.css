@@ -34,8 +34,8 @@
   --first-color: hsl(289, 54%, 24%);
   --secondary-color: hsl(163, 100%, 45%);
   --white-color: #fafaff;
-  --dark-color: #172833;
-  --text-color: #474e50;
+  --dark-color: #2e2e2e;
+  --text-color: #535353;
 }
 
 /*===== Fuente y tipografia =====*/
@@ -386,11 +386,14 @@ button {
   -ms-grid-columns: (1fr)[2];
       grid-template-columns: repeat(2, 1fr);
   row-gap: 3rem;
-  place-items: center;
-  text-align: center;
+  justify-items: center;
+  -webkit-box-align: start;
+      -ms-flex-align: start;
+          align-items: flex-start;
 }
 
 .skills .skill {
+  text-align: center;
   display: -webkit-box;
   display: -ms-flexbox;
   display: flex;
@@ -457,6 +460,18 @@ button {
 .portfolio__container {
   justify-items: center;
   row-gap: 2rem;
+}
+
+.portfolio .dis-port {
+  top: 10px;
+  color: var(--white-color);
+  left: 20px;
+  right: 20px;
+  position: absolute;
+}
+
+.portfolio .dis-port h3 {
+  margin: 0;
 }
 
 .portfolio__img {
@@ -799,9 +814,6 @@ button {
   .skills__container {
     -ms-grid-columns: (1fr)[3];
         grid-template-columns: repeat(3, 1fr);
-    -webkit-box-align: center;
-        -ms-flex-align: center;
-            align-items: center;
   }
   .portfolio__container {
     -ms-grid-columns: (1fr)[2];
