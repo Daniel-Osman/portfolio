@@ -1,6 +1,6 @@
 /*===== GOOGLE FONTS =====*/
 @import url("https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700&display=swap");
-@import url("https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Playfair+Display&display=swap");
 /* width */
 ::-webkit-scrollbar {
   width: 10px;
@@ -34,8 +34,8 @@
   --first-color: hsl(289, 54%, 24%);
   --secondary-color: hsl(163, 100%, 45%);
   --white-color: #fafaff;
-  --dark-color: #2e2e2e;
-  --text-color: #535353;
+  --dark-color: #202020;
+  --text-color: #424242;
 }
 
 /*===== Fuente y tipografia =====*/
@@ -299,7 +299,8 @@ button {
   -ms-flex-item-align: center;
       -ms-grid-row-align: center;
       align-self: center;
-  font-weight: 700;
+  letter-spacing: 2px;
+  font-weight: 600;
   text-transform: capitalize;
   font-size: var(--big-font-size);
   color: var(--white-color);
@@ -475,6 +476,9 @@ button {
 }
 
 .portfolio__img {
+  font-family: 'Playfair Display', serif;
+  letter-spacing: 2px;
+  font-family: 10rem;
   position: relative;
   overflow: hidden;
 }
@@ -488,6 +492,7 @@ button {
 }
 
 .portfolio__link {
+  font-family: inherit;
   position: absolute;
   bottom: -100%;
   width: 100%;
@@ -511,7 +516,7 @@ button {
 }
 
 .portfolio__link-name {
-  color: var(--dark-color);
+  color: var(--white-color);
 }
 
 /* ===== CONTACT =====*/
