@@ -1,0 +1,206 @@
+﻿@import "tailwindcss";
+
+/*
+ * One palette, two moods. The variables are the only place colour is decided: every
+ * utility below reads them, so switching `light` on <html> re-skins the whole site
+ * without touching a component.
+ */
+@theme {
+    --color-light-background: #f5f4f1;
+    --color-light-foreground: #262523;
+    --color-dark-background: #1a1917;
+    --color-dark-foreground: #fff7f0;
+    --color-hover: #3c7cff;
+}
+
+@theme inline {
+    --color-background: var(--background-color);
+    --color-foreground: var(--foreground-color);
+    --color-muted: var(--muted-color);
+    --font-sans: var(--font-geist-sans);
+    --font-mono: var(--font-geist-mono);
+}
+
+:root {
+    color-scheme: dark;
+    --background-color: var(--color-dark-background);
+    --foreground-color: var(--color-dark-foreground);
+    --muted-color: color-mix(in srgb, var(--foreground-color) 50%, transparent);
+}
+
+:root.light {
+    color-scheme: light;
+    --background-color: var(--color-light-background);
+    --foreground-color: var(--color-light-foreground);
+    --muted-color: color-mix(in srgb, var(--foreground-color) 64%, transparent);
+}
+
+html {
+    background-color: var(--background-color);
+    color: var(--foreground-color);
+    -webkit-text-size-adjust: 100%;
+}
+
+body {
+    margin: 0;
+    font-family: var(--font-mono), ui-monospace, monospace;
+    background-color: var(--background-color);
+    color: var(--foreground-color);
+    text-rendering: optimizeLegibility;
+    overflow-x: clip;
+    transition:
+        background-color 300ms ease,
+        color 300ms ease;
+}
+
+::selection {
+    background-color: var(--color-hover);
+    color: #fff;
+}
+
+/* A link in running text: a quiet underline that firms up on hover or focus. */
+.ink-link {
+    color: var(--foreground-color);
+    text-decoration-line: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 4px;
+    text-decoration-color: color-mix(in srgb, var(--foreground-color) 28%, transparent);
+    transition: text-decoration-color 150ms ease;
+    outline: none;
+}
+
+.ink-link:hover,
+.ink-link:focus-visible {
+    text-decoration-color: currentColor;
+}
+
+.ink-link:focus-visible {
+    outline: 1px solid color-mix(in srgb, var(--foreground-color) 28%, transparent);
+    outline-offset: 3px;
+    border-radius: 2px;
+}
+
+/* A focus ring you can see, drawn outside the element so nothing shifts. */
+.focus-ring {
+    outline: none;
+}
+
+.focus-ring:focus-visible {
+    outline: 1px solid color-mix(in srgb, var(--foreground-color) 45%, transparent);
+    outline-offset: 6px;
+    border-radius: 2px;
+}
+
+/* The home page's caret, blinking at the end of the opening line. */
+.caret {
+    display: inline-block;
+    width: 0.55em;
+    height: 1em;
+    transform: translateY(0.15em);
+    background-color: var(--foreground-color);
+    animation: blink 1.1s step-end infinite;
+}
+
+@keyframes blink {
+    0%,
+    49% {
+        opacity: 1;
+    }
+    50%,
+    100% {
+        opacity: 0;
+    }
+}
+
+/* Text arriving on a page that fades rather than slides. */
+@keyframes rise-in {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.rise {
+    animation: rise-in 600ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.rise-1 {
+    animation-delay: 80ms;
+}
+.rise-2 {
+    animation-delay: 180ms;
+}
+.rise-3 {
+    animation-delay: 280ms;
+}
+
+/*
+ * Page transitions. A project opens as a slide: the index drifts left while the
+ * project slides in over it, so the sideways motion of the strip carries on into
+ * the page. Going back plays the same film in reverse.
+ */
+:root[data-transition]::view-transition-old(root),
+:root[data-transition]::view-transition-new(root) {
+    mix-blend-mode: normal;
+    animation-fill-mode: both;
+}
+
+:root[data-transition="forward"]::view-transition-old(root),
+:root[data-transition="forward"]::view-transition-new(root),
+:root[data-transition="back"]::view-transition-old(root),
+:root[data-transition="back"]::view-transition-new(root) {
+    animation-duration: 0.65s;
+    animation-timing-function: cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+:root[data-transition="forward"]::view-transition-old(root) {
+    animation-name: vt-drift-left;
+}
+:root[data-transition="forward"]::view-transition-new(root) {
+    animation-name: vt-slide-in;
+}
+:root[data-transition="back"]::view-transition-old(root) {
+    z-index: 1;
+    animation-name: vt-slide-out;
+}
+:root[data-transition="back"]::view-transition-new(root) {
+    animation-name: vt-drift-in;
+}
+
+@keyframes vt-drift-left {
+    to {
+        transform: translateX(-30%);
+    }
+}
+@keyframes vt-slide-in {
+    from {
+        transform: translateX(100%);
+    }
+}
+@keyframes vt-slide-out {
+    to {
+        transform: translateX(100%);
+    }
+}
+@keyframes vt-drift-in {
+    from {
+        transform: translateX(-30%);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .caret {
+        animation: none;
+    }
+    .rise {
+        animation: none;
+    }
+    :root[data-transition]::view-transition-old(root),
+    :root[data-transition]::view-transition-new(root) {
+        animation: none !important;
+    }
+}

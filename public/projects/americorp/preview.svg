@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1067" viewBox="0 0 1600 1067" role="img" aria-label="Placeholder chart for Americorp International; not a product screenshot">
+  <rect width="1600" height="1067" fill="#f0ede4"/>
+  <g stroke="#e2ddcd" stroke-width="1" opacity="0.9"><path d="M400 0H400V1067"/><path d="M800 0H800V1067"/><path d="M1200 0H1200V1067"/><path d="M0 356H1600V356"/><path d="M0 712H1600V712"/></g>
+  <path d="M140 706C340 646 500 846 720 822S1000 646 1160 566 1310 626 1478 432" fill="none" stroke="#4f7d71" stroke-opacity="0.5" stroke-width="2" stroke-dasharray="7 11" stroke-linecap="round"/>
+  <g fill="#4f7d71" opacity="0.6"><circle cx="140" cy="706" r="5"/><circle cx="720" cy="822" r="5"/><circle cx="1478" cy="432" r="5"/></g>
+  <rect x="0.5" y="0.5" width="1599" height="1066" fill="none" stroke="#d6d0c1"/>
+  <text x="96" y="120" font-family="Consolas, 'Courier New', monospace" font-size="24" letter-spacing="5" fill="#8b8d84">DANIEL OSMAN / SELECTED WORK</text>
+  <text x="1504" y="120" text-anchor="end" font-family="Consolas, 'Courier New', monospace" font-size="24" letter-spacing="5" fill="#8b8d84">01</text>
+  <text x="96" y="520" font-family="Georgia, 'Times New Roman', serif" font-size="86" fill="#161917">Americorp International</text>
+  <text x="96" y="598" font-family="Georgia, 'Times New Roman', serif" font-style="italic" font-size="38" fill="#6b6f68">Making technical product information easier to find and use.</text>
+  <text x="96" y="966" font-family="Consolas, 'Courier New', monospace" font-size="24" letter-spacing="4" fill="#6b6f68">CLIENT WORK</text>
+  <text x="1504" y="966" text-anchor="end" font-family="Consolas, 'Courier New', monospace" font-size="22" letter-spacing="4" fill="#a3a49a">PLACEHOLDER — REAL MEDIA PENDING</text>
+</svg>
