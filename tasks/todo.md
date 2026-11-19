@@ -59,9 +59,9 @@
     - Acceptance: server page with metadata and the about-page measure, body outside the client guard; client code only for the nav switch and the form; all eight fields with the stated rules; explicit labels, radio `fieldset`/`legend`, honeypot out of the tab order and unannounced (honeypot and timer exempt from the visible-label rule); inline errors with `aria-describedby`/`aria-invalid`, one `role="status"` region announcing errors, success and failure, focus moved to the first invalid control; submit waits out the 2.5 s gate, guards double send, keeps typed values on every failure; success copy verbatim; distinct honest copy for `503`/`502`/network, timeout, `429` and unstructured `400`, with the `mailto:` link and its wording only when `CONTACT_TO` parses; visible focus, keyboard order, no shift at 360 px; privacy line; reduced motion honoured; no analytics or third-party script; `contact` is the fourth nav item on desktop and mobile.
     - Verify: `npx tsc --noEmit`, `npm run lint`, `npm run build`, `npm run format:check`, `next start` at 1440 and 360.
     - Files: `src/app/contact/page.tsx`, `src/app/components/site-nav.tsx`, `src/app/components/contact-form.tsx`, `src/app/components/top-nav.tsx`, `src/app/components/mobile-nav.tsx`.
-- [ ] **F-15** - Contact Phase 1 ship: branch, push, Vercel preview
+- [x] **F-15** - Contact Phase 1 ship: branch, push, Vercel preview
     - Acceptance: gates green on the final tree, evidence recorded, committed on a branch and pushed, a preview deployment (not promoted, and no push to `main`, which builds production) whose `/contact` answers; `NOW.md` names the env vars Daniel must add and what stays unproven.
-    - Verify: `git log --oneline -1`, `vercel ls portfolio`, preview `/contact` answers.
+    - Verify: quoted 2026-11-20 in `NOW.md` and `docs/evidence.md` — `192cbe4` on `contact/phase-1`, `vercel deploy` → `dpl_d8g8mmvbg` (preview, Ready), `/contact` 200 and `/api/contact` 503 through `vercel curl`.
     - Files: `NOW.md`, `tasks/todo.md`, `docs/evidence.md`.
 - [ ] **F-12** - Custom domain `danielosman.com` on the Vercel project
     - Acceptance: apex `A 76.76.21.21` and `www` `CNAME cname.vercel-dns.com` added at Cloudflare with the proxy off, domain verified in Vercel, certificate issued, `https://danielosman.com` returns 200, MX / SPF / `mail` records untouched.
