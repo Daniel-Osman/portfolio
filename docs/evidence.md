@@ -109,3 +109,46 @@ Open and deliberately not closed: screen-reader announcement pass, JS-disabled r
 **Domain, blocked:** `vercel domains add danielosman.com portfolio` -> `domain_not_owned` (403); the CLI only adds domains already owned or proven by DNS. No Cloudflare credential exists on this machine, so no zone record was changed. Measured state: apex A/AAAA none, `www` none, MX `route1/2/3.mx.cloudflare.net`, apex TXT `v=spf1 include:_spf.mx.cloudflare.net ~all`, `mail.danielosman.com` none, no `_vercel` or `_dmarc`. The Vercel dashboard path could not be used either: `https://vercel.com/api/stream/internal` returns `ERR_BLOCKED_BY_CLIENT` in Daniel's Chrome, so the Domains page stays on its skeleton.
 
 **Open:** the custom domain and its certificate, the real-domain re-check, contact URLs, OG image, real media, and a review of the current (pond) tree.
+
+## Contact Phase 1 — page, form and send path (2026-11-20)
+
+**Spec:** `docs/CONTACT_SPEC.md`. **Ledger:** F-13…F-15.
+
+**Changed:** `src/lib/contact-rules.ts` (limits, `isEmail`, `validateContact`, `buildEmail`), `src/lib/contact-send.ts` (`sendWithResend`, injectable `fetch`), `src/app/api/contact/route.ts` (Node, JSON + form-encoded, honeypot, 2.5 s gate, per-IP throttle, 400/429/503/502/504), `src/app/contact/page.tsx` (server page, `force-dynamic`), `src/app/components/{site-nav,contact-form}.tsx`, `top-nav.tsx` + `mobile-nav.tsx` (fourth item), `.env.example`, `.gitignore` (`!.env.example`), `docs/CONTACT_SPEC.md`, ledgers.
+
+**Gates** (Windows, Node 24.22.3, production build; output seen):
+
+- `npx tsc --noEmit` → exit 0
+- `npm run lint` → exit 0
+- `npm run build` → exit 0 on the retry (the first invocation printed the route table then exited 1 with the known `SecurityFatalError`; retry exited 0). Route table: 15 pages, `/contact` **ƒ** and `/api/contact` **ƒ**.
+- `npm run format:check` → exit 0
+- Payload/rules script (`.next/contact-send-check.mjs`, throwaway, fake `fetch`, no dependency): 38 checks, `ALL CHECKS PASSED` — subject `New enquiry — … — …`, `reply_to` = visitor, `to` array, labelled text, escaped HTML, `rejected` on 422, `unconfirmed` on transport error and abort.
+
+**API, `next start`, key deliberately absent** (`x-real-ip` set per case):
+
+| Case                                           | Result                                                             |
+| ---------------------------------------------- | ------------------------------------------------------------------ |
+| valid JSON                                     | `503 not_configured`                                               |
+| valid form-encoded                             | `503 not_configured`                                               |
+| message 9 chars                                | `400` + `errors.message`                                           |
+| honeypot filled                                | `200 {"ok":true}` — no send (a fall-through would have 503'd)      |
+| `elapsedMs` 100                                | `200 {"ok":true}`                                                  |
+| `elapsedMs` 2500                               | `503` — boundary is inclusive, as specified                        |
+| malformed JSON / non-object JSON / array field | `400 bad_request`                                                  |
+| six valid calls, one IP                        | five answered, sixth `429 rate_limited`                            |
+| valid call with a deliberately wrong key       | `502 send_failed` from a real `https://api.resend.com/emails` call |
+
+**Browser, production `next start` at 1440×900 and 360×740** (Playwright, fresh profile):
+Focus order: skip link → pond → projects → about → contact → theme → name → email → phone → topic → 3 radios → message → send. Honeypot `tabIndex -1`, inside `aria-hidden`. One `h1` per page; `scrollWidth - innerWidth = 0` at both widths.
+Empty submit: 5 inline errors, `aria-invalid` on 4 controls + `aria-describedby` on all 5 groups, `role="status"` announces "5 fields need attention.", focus lands on `#name`.
+Layout stability: submit button `top` 964 → 964 at 1440 (doc 1166 → 1166); 1060 → 1060 at 360 (doc 1291 → 1291); every reserved error line measures 18 px, one line, at 360.
+Failure with `CONTACT_TO` set: 502 → "The message did not send. Your text is still here. Email inbox@danielosman.com and I will reply from there.", `href="mailto:inbox@danielosman.com"`, all typed values preserved. Failure with `CONTACT_TO` unset: same copy without the address or the link.
+Throttle: after five calls from the browser's own bucket, submit → "Too many messages just now. Try again in a few minutes. Email inbox@danielosman.com and I will reply from there."
+Mobile nav at 360: menu lists pond / projects / about / contact, `contact` marked "here".
+Console: 0 messages on load; the only entry after a failed submit is Chrome's own record of the intentional 502, as with the 404 note above. Reduced motion: `main` animation `none`. Light and dark both rendered.
+
+**Negative:** `/contact` was prerendered at build, so `fallbackAddress()` baked in the build-time (empty) env and the `mailto:` never rendered in production even with `CONTACT_TO` set. Fixed with `export const dynamic = "force-dynamic"` and re-verified (`/"copy":true,"mailto":"mailto:inbox@danielosman.com"`). Also: `validateContact` judged untrimmed input, so a name of spaces passed — the script caught it, and validation now trims first.
+
+**Open / unproven:** no key exists here, so **no real email was sent and the success state was never rendered**; delivery is unproven end to end. The 504 "could not confirm" copy is not exercised live (it needs a hung Resend). Preview deployment only; nothing promoted.
+
+**Deploy (preview only, 2026-11-20):** branch `contact/phase-1` pushed; `vercel deploy --yes` → `dpl_d8g8mmvbg`, `target: preview`, state Ready, https://portfolio-d8g8mmvbg-daniel-osmans-projects.vercel.app. Preview URLs are protected (`all_except_custom_domains`): anonymous `GET /contact` → 302 to `vercel.com/sso-api`, anonymous `POST /api/contact` → 401. Through `vercel curl --deployment …`: `GET /contact` → 200 with the full form and `fallbackAddress: null`; `POST /api/contact` (valid body) → `503 {"ok":false,"error":"not_configured"}`, exactly as expected with no env set. `main` was **not** pushed, because the Vercel Git integration turns a `main` push into a production deployment.
