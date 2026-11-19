@@ -6,7 +6,7 @@ import { Providers } from "./providers";
 import "./globals.css";
 
 export const metadata: Metadata = {
-    // No metadataBase or canonical URL until a real domain is confirmed.
+    metadataBase: new URL("https://danielosman.com"),
     title: {
         default: "Daniel Osman — software, operations and intelligent systems",
         template: "%s | Daniel Osman",
