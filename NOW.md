@@ -20,7 +20,7 @@
 | `src/app/globals.css`               | Design tokens, `.display` / `.display-italic` / `.annotation`, hairline rules, motion + reduced-motion              |
 | `src/lib/layout.ts`                 | Shared page shell (kept out of `src/app/` so Next doesn't treat it as a route)                                      |
 | `docs/evidence/`                    | Eight screenshots from the post-redesign build (1440 + 360)                                                         |
-| `feature_list.json`                 | F-01…F-10                                                                                                           |
+| `tasks/todo.md`                     | F-01…F-10                                                                                                           |
 
 ## Gates
 

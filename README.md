@@ -24,14 +24,14 @@ npm run format:check
 
 ## Where the documents live
 
-| Path                                                   | What                                                      |
-| ------------------------------------------------------ | --------------------------------------------------------- |
-| `NOW.md`                                               | current state: status, next, verified                     |
-| `docs/BRAND_AND_CONTENT.md`                            | the writing source of truth                               |
-| `docs/IMPLEMENTATION_PLAN.md`, `docs/OPENCODE_TASK.md` | phases and acceptance criteria                            |
-| `docs/evidence.md`, `docs/evidence/`                   | milestone gate record and screenshots                     |
-| `docs/REFERENCE.md`                                    | what is studied from the reference, and what is not taken |
-| `feature_list.json`                                    | feature-by-feature completion, flipped only with proof    |
+| Path                                     | What                                                      |
+| ---------------------------------------- | --------------------------------------------------------- |
+| `NOW.md`                                 | current state: status, next, verified                     |
+| `docs/BRAND_AND_CONTENT.md`              | the writing source of truth                               |
+| `tasks/plan.md`, `docs/OPENCODE_TASK.md` | phases and acceptance criteria                            |
+| `docs/evidence.md`, `docs/evidence/`     | milestone gate record and screenshots                     |
+| `docs/REFERENCE.md`                      | what is studied from the reference, and what is not taken |
+| `tasks/todo.md`                          | the one ledger: task per feature, ticked only with proof  |
 
 ## Provenance
 

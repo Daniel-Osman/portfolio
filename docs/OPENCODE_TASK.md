@@ -12,7 +12,7 @@ Build a credible, distinctive personal website for Daniel Osman: independent ful
 
 ## Inputs
 
-Read `README.md`, `docs/BRAND_AND_CONTENT.md`, `docs/IMPLEMENTATION_PLAN.md`, `src/app/data/profile.ts`, `src/app/data/projects.ts`, and SVG placeholders. These form the content source of truth.
+Read `README.md`, `docs/BRAND_AND_CONTENT.md`, `tasks/plan.md`, `src/app/data/profile.ts`, `src/app/data/projects.ts`, and SVG placeholders. These form the content source of truth.
 
 ## Scope
 

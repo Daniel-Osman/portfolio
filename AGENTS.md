@@ -4,7 +4,7 @@
 
 1. `NOW.md` → what exists today.
 2. `docs/BRAND_AND_CONTENT.md` → the writing source of truth.
-3. `docs/IMPLEMENTATION_PLAN.md` → phases; `docs/OPENCODE_TASK.md` → acceptance criteria.
+3. `tasks/plan.md` → phases; `docs/OPENCODE_TASK.md` → acceptance criteria.
 4. `docs/REFERENCE.md` → what we borrow from Dao Ho's portfolio, and what we must not.
 
 ## Purpose
@@ -43,5 +43,5 @@ See `NOW.md`.
 
 ## Progress tracking
 
-- One feature at a time from `feature_list.json`, end-to-end verified before `passes` flips.
+- One task at a time from `tasks/todo.md`, end-to-end verified before its box ticks. It is the only ledger.
 - Refresh `NOW.md`'s Status / Next / Verified block after meaningful work.
