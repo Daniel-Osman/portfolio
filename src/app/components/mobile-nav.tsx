@@ -10,6 +10,7 @@ const LINKS = [
     { label: "pond", href: "/" },
     { label: "projects", href: "/projects" },
     { label: "about", href: "/about" },
+    { label: "contact", href: "/contact" },
 ];
 
 /** The phone's only chrome: a pill that opens the whole map. */
