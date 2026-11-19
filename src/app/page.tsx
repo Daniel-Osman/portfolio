@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useState } from "react";
 import MobileNav from "@/app/components/mobile-nav";
-import PageNav from "@/app/components/page-nav";
 import Pond, { type PondStats } from "@/app/components/pond/pond";
 import TopNav from "@/app/components/top-nav";
 import { useGlobal } from "@/app/providers";
@@ -85,11 +84,6 @@ export default function HomePage() {
                         </Link>
                     </p>
                 </div>
-
-                <PageNav
-                    prev={{ href: "/contact", label: "contact" }}
-                    next={{ href: "/projects", label: "projects" }}
-                />
 
                 {isMobile ? null : (
                     <p

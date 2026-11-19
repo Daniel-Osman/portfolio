@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import MobileNav from "@/app/components/mobile-nav";
-import PageNav from "@/app/components/page-nav";
 import TopNav from "@/app/components/top-nav";
 import { profile } from "@/app/data/profile";
 import { useGlobal } from "@/app/providers";
@@ -67,13 +66,8 @@ export default function AboutView() {
                             contact form
                         </Link>{" "}
                         comes straight to me. I answer it myself, usually within two business days.
-                    </p>{" "}
+                    </p>
                 </section>
-
-                <PageNav
-                    prev={{ href: "/projects", label: "projects" }}
-                    next={{ href: "/contact", label: "contact" }}
-                />
             </main>
         </div>
     );
