@@ -63,8 +63,12 @@
     - Acceptance: gates green on the final tree, evidence recorded, committed on a branch and pushed, a preview deployment (not promoted, and no push to `main`, which builds production) whose `/contact` answers; `NOW.md` names the env vars Daniel must add and what stays unproven.
     - Verify: quoted 2026-11-20 in `NOW.md` and `docs/evidence.md` — `192cbe4` on `contact/phase-1`, `vercel deploy` → `dpl_d8g8mmvbg` (preview, Ready), `/contact` 200 and `/api/contact` 503 through `vercel curl`.
     - Files: `NOW.md`, `tasks/todo.md`, `docs/evidence.md`.
+- [x] **F-16** - Remove the shared page loop from the four top-level pages
+    - Acceptance: `src/app/components/page-nav.tsx` deleted; `PageNav` and its import gone from `src/app/page.tsx`, `src/app/components/about-view.tsx`, `src/app/contact/page.tsx`, and from both branches of `src/app/components/projects-view.tsx`; the projects desktop layout restored to its pre-`332671a` state (`main` `flex h-full flex-col justify-center pt-12`, `DesktopStrip` direct, no `max-w-[56rem]`/`pb-8` block, tile `h-[min(62vh,42rem)]` with no media-height override); the project-to-project nav on `/projects/[slug]` untouched; the home hero `contact` link and the about sentence pointing at `/contact` kept; no `aria-label="Page navigation"` on `/`, `/projects`, `/about`, `/contact`; `/projects` has no horizontal overflow at 1440 and 360.
+    - Verify: quoted 2026-11-20 in `NOW.md` and `docs/evidence.md` — `0bb9a09` on `main`; tsc 0, lint 0, build 1 then 0, format:check 0; `dpl_ERucsag7BMvVwsPVV1Lj5AuwrDs7` Ready on `main`; five routes 200 on `https://danielosman.com`.
+    - Files: `src/app/page.tsx`, `src/app/components/{about-view,projects-view}.tsx`, `src/app/contact/page.tsx`, `NOW.md`, `tasks/todo.md`, `docs/evidence.md`.
 - [ ] **F-12** - Custom domain `danielosman.com` on the Vercel project
     - Acceptance: apex `A 76.76.21.21` and `www` `CNAME cname.vercel-dns.com` added at Cloudflare with the proxy off, domain verified in Vercel, certificate issued, `https://danielosman.com` returns 200, MX / SPF / `mail` records untouched.
-    - Blocked: no Cloudflare credential here; `vercel domains add` returns `domain_not_owned`; the Vercel Domains page is blocked by a browser extension in Daniel's Chrome.
+    - Blocked (partly closed 2026-11-20): the domain now answers — 200 on five routes, `ssl_verify_result=0`, `www` 308 → apex, aliased in Vercel — so what remains is the DNS-record and MX/SPF/`mail` check below.
     - Verify: `vercel domains inspect danielosman.com`
     - Files: -

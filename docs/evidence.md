@@ -152,3 +152,32 @@ Console: 0 messages on load; the only entry after a failed submit is Chrome's ow
 **Open / unproven:** no key exists here, so **no real email was sent and the success state was never rendered**; delivery is unproven end to end. The 504 "could not confirm" copy is not exercised live (it needs a hung Resend). Preview deployment only; nothing promoted.
 
 **Deploy (preview only, 2026-11-20):** branch `contact/phase-1` pushed; `vercel deploy --yes` → `dpl_d8g8mmvbg`, `target: preview`, state Ready, https://portfolio-d8g8mmvbg-daniel-osmans-projects.vercel.app. Preview URLs are protected (`all_except_custom_domains`): anonymous `GET /contact` → 302 to `vercel.com/sso-api`, anonymous `POST /api/contact` → 401. Through `vercel curl --deployment …`: `GET /contact` → 200 with the full form and `fallbackAddress: null`; `POST /api/contact` (valid body) → `503 {"ok":false,"error":"not_configured"}`, exactly as expected with no env set. `main` was **not** pushed, because the Vercel Git integration turns a `main` push into a production deployment.
+
+## R-01 - page loop removed (2026-11-20, `0bb9a09`)
+
+**Scope:** bounded revert of the UI half of `332671a`. `PageNav` (a shared page loop) left the four top-level pages; project detail pages keep the `Project navigation` they already had.
+
+**Changed:** `src/app/components/page-nav.tsx` **deleted**; `src/app/page.tsx`, `src/app/components/about-view.tsx`, `src/app/contact/page.tsx` lost the `PageNav` block and its import; `src/app/components/projects-view.tsx` lost it from both branches and got its desktop layout back - `main` `flex h-full flex-col justify-center pt-12`, `DesktopStrip` rendered directly (no `flex flex-1` wrapper, no `max-w-[56rem]`/`pb-8` block), strip tile back to `h-[min(62vh,42rem)]` with the `[@media(max-height:820px)]` override dropped. Kept on purpose: the home hero `contact` link that replaced "contact pending", and the about sentence pointing at `/contact`. `projects-view.tsx` and `contact/page.tsx` are byte-identical to their pre-`332671a` blobs; `git diff a4dfd8e` shows only the two kept copy changes, in `page.tsx` and `about-view.tsx`. 5 files, +4 / -80.
+
+**Gates** (Windows, Node 24.22.3, final tree):
+
+- `npx tsc --noEmit` -> exit 0
+- `npm run lint` -> exit 0
+- `npm run build` -> exit **1**, then exit **0** on the retry. The first run compiled, type-checked, generated 14/14 static pages and printed the route table (17 entries; `/contact` and `/api/contact` dynamic), then hit `SecurityFatalError: Your version of Next.js is affected by a known security vulnerability` - the standing Next 16.4.3 advisory documented in `NOW.md` Gates, not this change. The retry printed the same table and exited 0.
+- `npm run format:check` -> exit 0
+
+**Production `next start` on :3111** (3001 was already held by another process on this box; Daniel's Chrome over `browse`, DOM measured after hydration - the top-level pages render nothing in the pre-hydration HTML because they wait on `useGlobal`):
+
+| Route            | `aria-label="Page navigation"` | Other                                                                                        |
+| ---------------- | ------------------------------ | -------------------------------------------------------------------------------------------- |
+| `/`              | 0                              | hero line `projects/about/contact`, `contact` -> `/contact`; no "contact pending"            |
+| `/projects`      | 0                              | desktop `main` `flex h-full flex-col justify-center pt-12`; tile 558 px = `62vh` at 1440x900 |
+| `/about`         | 0                              | "The contact form comes straight to me...", `contact form` -> `/contact`                     |
+| `/contact`       | 0                              | form renders, no nav block below it                                                          |
+| `/projects/helm` | 0                              | `Project navigation` present: `<- Americorp International` and `NFD Express ->`              |
+
+Layout: 1440x900 - `scrollWidth` 1440 = `clientWidth`, no horizontal overflow, tile left 272 / width 837, tile centre 424 px against a 450 px viewport centre (the `pt-12` offset, the same geometry as before `332671a`). 360x800 - `scrollWidth` 360 = `clientWidth` on all four routes, zero overflowing node in `main` (`/contact` reports only the honeypot parked at `-9999px`). Console, errors only, across all five routes: 5 entries, every one from Daniel's own extension (`chrome-extension://mbnbe.../inspector.b9415ea5.js`, "Permissions policy violation: unload is not allowed in this document"); zero page-origin errors.
+
+**Deploy:** committed `0bb9a09` on `main`, pushed; the Vercel Git integration built production. `dpl_ERucsag7BMvVwsPVV1Lj5AuwrDs7`, `target: production`, status **Ready** at 01:44:08 +0200, build log line `Cloning github.com/Daniel-Osman/portfolio (Branch: main, Commit: 0bb9a09)`, aliases `https://danielosman.com`, `https://www.danielosman.com`, `portfolio-seven-orpin-35j0cxyw5s`, `portfolio-daniel-osmans-projects`, `portfolio-git-main-daniel-osmans-projects`. Live `curl` on `https://danielosman.com`: `/`, `/projects`, `/about`, `/contact`, `/projects/helm` -> **200**; `ssl_verify_result=0`; `www.danielosman.com` -> 308 to the apex; the `portfolio-daniel-osmans-projects.vercel.app` alias answers 302 (it redirects to the domain). The same DOM checks were repeated live: `/projects` 0 page navs, tile 558 px = `62vh`, no overflow; `/projects/helm` project nav with both neighbours; `/` hero `projects/about/contact`.
+
+**Honest note:** the Next 16.4.3 security advisory still makes the **first** `npm run build` exit non-zero on every run; the retry is what exits 0. The pinned version is Daniel's call and was not touched here. Nothing else is unproven.
