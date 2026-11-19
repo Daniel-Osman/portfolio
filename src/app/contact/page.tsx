@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import ContactForm from "@/app/components/contact-form";
+import PageNav from "@/app/components/page-nav";
 import SiteNav from "@/app/components/site-nav";
 import { isEmail } from "@/lib/contact-rules";
 
@@ -45,6 +46,11 @@ export default function ContactPage() {
                 </header>
 
                 <ContactForm fallbackAddress={fallbackAddress()} />
+
+                <PageNav
+                    prev={{ href: "/about", label: "about" }}
+                    next={{ href: "/", label: "home" }}
+                />
             </main>
         </div>
     );

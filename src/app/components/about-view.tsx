@@ -1,6 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import MobileNav from "@/app/components/mobile-nav";
+import PageNav from "@/app/components/page-nav";
 import TopNav from "@/app/components/top-nav";
 import { profile } from "@/app/data/profile";
 import { useGlobal } from "@/app/providers";
@@ -60,10 +62,18 @@ export default function AboutView() {
                         in the UAE, Saudi Arabia and beyond.
                     </p>
                     <p className="mt-3">
-                        Contact details are added once Daniel confirms the public address and
-                        permissions. Nothing here invents one.
-                    </p>
+                        The{" "}
+                        <Link href="/contact" className="ink-link">
+                            contact form
+                        </Link>{" "}
+                        comes straight to me. I answer it myself, usually within two business days.
+                    </p>{" "}
                 </section>
+
+                <PageNav
+                    prev={{ href: "/projects", label: "projects" }}
+                    next={{ href: "/contact", label: "contact" }}
+                />
             </main>
         </div>
     );

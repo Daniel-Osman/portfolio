@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef } from "react";
 import MobileNav from "@/app/components/mobile-nav";
+import PageNav from "@/app/components/page-nav";
 import TopNav from "@/app/components/top-nav";
 import { projects, type Project } from "@/app/data/projects";
 import { useGlobal } from "@/app/providers";
@@ -87,6 +88,10 @@ export default function ProjectsView() {
                             </article>
                         );
                     })}
+                    <PageNav
+                        prev={{ href: "/", label: "home" }}
+                        next={{ href: "/about", label: "about" }}
+                    />
                 </main>
             </div>
         );
@@ -95,9 +100,17 @@ export default function ProjectsView() {
     return (
         <div className="relative h-[100dvh] w-full overflow-hidden bg-background">
             <TopNav />
-            <main id="main" className="flex h-full flex-col justify-center pt-12">
+            <main id="main" className="flex h-full flex-col pt-12">
                 <h1 className="sr-only">Projects</h1>
-                <DesktopStrip />
+                <div className="flex flex-1 flex-col justify-center">
+                    <DesktopStrip />
+                </div>
+                <div className="mx-auto w-full max-w-[56rem] px-6 pb-8">
+                    <PageNav
+                        prev={{ href: "/", label: "home" }}
+                        next={{ href: "/about", label: "about" }}
+                    />
+                </div>
             </main>
         </div>
     );
@@ -193,7 +206,7 @@ function StripTile({
         <>
             <div
                 data-slug={project.slug}
-                className="relative aspect-[3/2] h-[min(62vh,42rem)] overflow-hidden bg-foreground/[0.06]"
+                className="relative aspect-[3/2] h-[min(62vh,42rem)] overflow-hidden bg-foreground/[0.06] [@media(max-height:820px)]:h-[min(calc(100dvh_-_22rem),42rem)]"
             >
                 <Image
                     src={project.thumb}
