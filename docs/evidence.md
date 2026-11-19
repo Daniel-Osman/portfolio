@@ -81,3 +81,31 @@ Three read-only `helm/reviewer` passes ran; two exhausted their step budget befo
 - Pass 3 reached the browser: 11 routes × 2 widths, titles correct, one `h1` each, zero overflow, zero console errors, self-hosted fonts only, no authoring-voice strings, keyboard order and mobile-nav/Escape correct. Verdict: **M-01 provisional PASS**, **M-02 UNPROVEN** on the artwork clause.
 
 Open and deliberately not closed: screen-reader announcement pass, JS-disabled rendering, real media, verified dates, domain and OG image.
+
+## Phase 0 launch — repo and Vercel (2026-11-19)
+
+**Scope:** no feature work. The existing tree to a live site: ledger migration committed, `metadataBase` set, repo pushed, Vercel production deploy, live verification. Custom domain not attached (blocked, see below).
+
+**Changed:** `src/app/layout.tsx` (`metadataBase: new URL("https://danielosman.com")`, the only source edit), `AGENTS.md` / `NOW.md` / `README.md` / `docs/OPENCODE_TASK.md` (ledger now `tasks/todo.md`), `feature_list.json` deleted, `tasks/plan.md` + `tasks/todo.md` added, `NOW.md` + `INDEX.md` refreshed. `npm run format` realigned the README table and both task files.
+
+**Commits:** `080665f` ledger migration, `77cdb51` metadataBase. A push to `Daniel-Osman/portfolio` `main` created the repo (`gh repo create --public --source=. --remote=origin --push`).
+
+**Gates** (this tree, output seen; Windows, Node 24.18.0):
+
+- `npx tsc --noEmit` -> exit 0
+- `npm run lint` -> exit 0
+- `npm run build` -> exit 0, 13/13 static pages: `/`, `/_not-found`, `/about`, `/icon.svg`, `/projects`, 7 SSG paths under `/projects/[slug]`. The first invocation printed the same table then exited 1 with `SecurityFatalError` (Next 16.4.3 security advisory, retry prompt); the retry exited 0. Re-run on the `metadataBase` tree: exit 0.
+- `npm run format:check` -> exit 0 (was exit 1 on three files before `npm run format`)
+
+**Deploy:** Vercel CLI 59.9.1, account `daniel-osman`, team `daniel-osmans-projects`, project `portfolio` created from this directory and connected to the GitHub repo. `vercel deploy --prod` -> `readyState: READY`, `dpl_2hnEow6CMaCkT79E6MpPoydHvhXC`, production alias `https://portfolio-seven-orpin-35j0cxyw5s.vercel.app`.
+
+**Live checks** (production alias, 2026-11-19):
+
+- `/`, `/projects`, `/about`, `/projects/helm` -> 200; `/projects/does-not-exist`, `/nope` -> 404 with one `h1`
+- TLS: `curl ssl_verify_result=0`, HSTS present
+- Clean Chromium (Playwright, `channel=chrome`, no extensions), each of the five routes in its own context: request origins = the site only, no `fonts.googleapis.com` or `gstatic`; console empty, page errors empty, failed requests empty. The 404 route logs one network error, which is Chrome reporting the intentional 404 status.
+- Daniel's own Chrome showed three `fonts.googleapis.com/css2` requests (Inter, Roboto, Roboto Mono) that are absent from the served HTML and from the clean profile — injected by a browser extension, as with the `data-darkreader` note above.
+
+**Domain, blocked:** `vercel domains add danielosman.com portfolio` -> `domain_not_owned` (403); the CLI only adds domains already owned or proven by DNS. No Cloudflare credential exists on this machine, so no zone record was changed. Measured state: apex A/AAAA none, `www` none, MX `route1/2/3.mx.cloudflare.net`, apex TXT `v=spf1 include:_spf.mx.cloudflare.net ~all`, `mail.danielosman.com` none, no `_vercel` or `_dmarc`. The Vercel dashboard path could not be used either: `https://vercel.com/api/stream/internal` returns `ERR_BLOCKED_BY_CLIENT` in Daniel's Chrome, so the Domains page stays on its skeleton.
+
+**Open:** the custom domain and its certificate, the real-domain re-check, contact URLs, OG image, real media, and a review of the current (pond) tree.

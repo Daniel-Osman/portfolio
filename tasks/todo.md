@@ -47,3 +47,12 @@
     - Acceptance: npm ci, npm run lint, npx tsc --noEmit and npm run build exit 0 on the final tree; every route checked at 1440 and 360 with keyboard order and reduced motion; evidence recorded in NOW.md.
     - Verify: -
     - Files: -
+- [x] **F-11** - Phase 0 launch: repo and Vercel production deploy
+    - Acceptance: ledger committed, `metadataBase` set to `https://danielosman.com`, repo public at `Daniel-Osman/portfolio`, Vercel project `portfolio` deploys production, and five live routes checked (200s, 404 for an unknown slug, no Google Fonts, no console errors, valid certificate).
+    - Verify: quoted 2026-11-19 in `NOW.md` and `docs/evidence.md`
+    - Files: `src/app/layout.tsx`, `NOW.md`, `docs/evidence.md`
+- [ ] **F-12** - Custom domain `danielosman.com` on the Vercel project
+    - Acceptance: apex `A 76.76.21.21` and `www` `CNAME cname.vercel-dns.com` added at Cloudflare with the proxy off, domain verified in Vercel, certificate issued, `https://danielosman.com` returns 200, MX / SPF / `mail` records untouched.
+    - Blocked: no Cloudflare credential here; `vercel domains add` returns `domain_not_owned`; the Vercel Domains page is blocked by a browser extension in Daniel's Chrome.
+    - Verify: `vercel domains inspect danielosman.com`
+    - Files: -
