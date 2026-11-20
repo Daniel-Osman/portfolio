@@ -23,7 +23,12 @@ export default function ProjectView({ slug }: { slug: string }) {
         sessionStorage.setItem(LAST_PROJECT_KEY, slug);
     }, [slug]);
 
-    if (isMobile === null || !project?.page) return null;
+    /*
+     * No `isMobile === null` gate: the server and the first client render both read a null
+     * `isMobile`, so the case study is in the HTML and hydration matches. A phone swaps the
+     * nav in on hydration; both navs are fixed, so nothing below them moves.
+     */
+    if (!project?.page) return null;
 
     const { page } = project;
     const pages = [...projects].reverse().filter((item) => item.page);
@@ -59,9 +64,7 @@ export default function ProjectView({ slug }: { slug: string }) {
                     </h1>
                     <p className="mt-1 text-[16px] text-muted">{page.tagline}</p>
 
-                    <p className={`${BODY} mt-8`}>
-                        <ProseText runs={page.about} />
-                    </p>
+                    <ProseText runs={page.about} className={`${BODY} mt-8`} />
 
                     <dl className="mt-10 grid gap-x-6 gap-y-2 border-t border-foreground/15 pt-4 font-mono text-[12px] sm:grid-cols-2">
                         {[
