@@ -3,6 +3,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 
+import VoicePanel from "./voice-panel";
+import { fragmentWithoutVoice, tokenFromFragment } from "./voice/voice-protocol";
+
 /**
  * Both values are build-time: Next inlines every `NEXT_PUBLIC_*` reference into the client bundle,
  * so the server render and the browser agree without a second copy of either.
@@ -27,7 +30,6 @@ function agentUrl(): string | null {
 }
 
 const PANEL_ID = "assistant-panel";
-const OVERLAY_ID = "assistant-voice";
 const REVEAL_MS = 10_000;
 const WAKE_TIMEOUT_MS = 20_000;
 const KEPT_TURNS = 12;
@@ -80,6 +82,18 @@ function trimForSend(history: Turn[]): Turn[] {
     return kept;
 }
 
+/**
+ * The invite token arrives in the fragment, which no server log ever sees. This read is pure and
+ * side-effect free, so it is safe as a lazy state initializer: the token is kept in memory and the
+ * address bar is left alone. The strip below needs to wait for the mount effect, because a write
+ * made during render is overwritten once Next takes the page over. On the server there is no
+ * fragment, so it returns null.
+ */
+function readInviteFragment(): string | null {
+    if (typeof window === "undefined") return null;
+    return tokenFromFragment(window.location.hash);
+}
+
 function Assistant() {
     const url = agentUrl();
     const pathname = usePathname();
@@ -93,41 +107,65 @@ function Assistant() {
     const [problem, setProblem] = useState<Problem>(null);
     /** A refused draft: one line about the composer, never a `try again` for a turn not sent. */
     const [notice, setNotice] = useState<string | null>(null);
+    /** The invite token, read once from the fragment and kept in memory only. */
+    const [token, setToken] = useState<string | null>(readInviteFragment);
 
     const root = useRef<HTMLDivElement>(null);
     const launcher = useRef<HTMLButtonElement>(null);
+    const talk = useRef<HTMLButtonElement>(null);
     const panelClose = useRef<HTMLButtonElement>(null);
-    const overlay = useRef<HTMLDivElement>(null);
-    const overlayClose = useRef<HTMLButtonElement>(null);
     const input = useRef<HTMLInputElement>(null);
     const list = useRef<HTMLDivElement>(null);
     const woke = useRef(false);
     const inFlight = useRef(false);
     const voiceOpen = useRef(false);
+    /** Set by `closeVoice`, spent by the effect below once the overlay's commit has landed. */
+    const restoreFocus = useRef(false);
     /** The path on first render: a route change is a difference from it, not the first value. */
     const firstPath = useRef(pathname);
-    /** Set just before the overlay closes, so the focus guard lets the return to the launcher through. */
-    const guardOff = useRef(false);
-    /** Exactly the nodes this overlay made inert, so closing clears those and nothing else. */
-    const inerted = useRef<HTMLElement[]>([]);
 
     // Closing stands the guard down first: it would otherwise pull focus straight back into an
     // overlay that is already on its way out.
     const dismissVoice = useCallback(() => {
-        guardOff.current = true;
         setVoice(false);
     }, []);
 
-    // A visitor who closed the overlay gets the keyboard back on the launcher they came from.
+    /**
+     * A visitor who closed the overlay gets the keyboard back on `talk`, inside the panel that is
+     * still open; the launcher is only the fallback for a panel that closed too. The move cannot
+     * happen here: the panel carries `inert` while the overlay is open, and a focus call into an
+     * inert subtree is refused. The ref is set first, so a synchronous flush still sees it, and
+     * the effect below focuses once the commit has cleared `inert` and unmounted the overlay.
+     */
     const closeVoice = useCallback(() => {
+        restoreFocus.current = true;
         dismissVoice();
-        launcher.current?.focus();
     }, [dismissVoice]);
+
+    useEffect(() => {
+        if (voice || !restoreFocus.current) return;
+        restoreFocus.current = false;
+        (talk.current ?? launcher.current)?.focus();
+    }, [voice]);
 
     // Nothing for the first ten seconds: not a node, not a pixel of layout. Then it stays.
     useEffect(() => {
         const timer = window.setTimeout(() => setShown(true), REVEAL_MS);
         return () => window.clearTimeout(timer);
+    }, []);
+
+    // The token is read by the state initializer above, which is pure. The strip runs once here,
+    // after hydration: Next rewrites the address bar as it takes the page over, so the same write
+    // from render was overwritten and the invite stayed visible. Any other fragment is untouched.
+    useEffect(() => {
+        const fragment = window.location.hash;
+        if (!tokenFromFragment(fragment)) return;
+        const rest = fragmentWithoutVoice(fragment);
+        window.history.replaceState(
+            window.history.state,
+            "",
+            `${window.location.pathname}${window.location.search}${rest}`
+        );
     }, []);
 
     // One request, once per page load. It only wakes a hosting provider's sleeping instance:
@@ -154,111 +192,8 @@ function Assistant() {
         panelClose.current?.focus();
     }, [open]);
 
-    // The overlay declares itself modal, so it holds the keyboard too: focus lands on `close`, Tab
-    // wraps inside it and Shift+Tab from the first element wraps to the last. Without the trap the
-    // browser walked out to the launcher and then into the contact form behind the overlay.
-    //
-    // The frame needs a second guard on top of that. Keys pressed inside it never reach this
-    // document, so `keydown` cannot see the Tab that leaves its controls, and the focus move that
-    // follows fires no keydown here either. `focusin` is the only thing that does see it, so any
-    // focus landing outside the overlay is put back on `close`.
-    //
-    // The trap listens on `document`, not on the overlay node. When the tab chain ends Chrome parks
-    // focus on `document.body`, which is outside the overlay, so a listener on the node would never
-    // see the next Tab and the visitor would hit a dead stop.
-    useEffect(() => {
-        if (!voice) return;
-        const node = overlay.current;
-        if (!node) return;
-
-        guardOff.current = false;
-        overlayClose.current?.focus();
-
-        // The frame is focusable content here as well: the agent's own controls live inside it, so a
-        // trap that skipped it would make the voice agent unreachable by keyboard.
-        const selector =
-            'a[href], button:not([disabled]), input, iframe, [tabindex]:not([tabindex="-1"])';
-        const focusables = () =>
-            Array.from(node.querySelectorAll<HTMLElement>(selector)).filter(
-                (element) => element.getClientRects().length > 0
-            );
-
-        const onKeyDown = (event: KeyboardEvent) => {
-            if (event.key !== "Tab") return;
-
-            const items = focusables();
-            if (items.length === 0) {
-                event.preventDefault();
-                return;
-            }
-
-            const first = items[0];
-            const last = items[items.length - 1];
-            const active = document.activeElement;
-            const inside = active instanceof HTMLElement && node.contains(active);
-
-            if (event.shiftKey) {
-                if (!inside || active === first) {
-                    event.preventDefault();
-                    last.focus();
-                }
-                return;
-            }
-            if (!inside || active === last) {
-                event.preventDefault();
-                first.focus();
-            }
-        };
-
-        const onFocusIn = (event: FocusEvent) => {
-            if (guardOff.current) return;
-            const target = event.target;
-            // Focus inside the overlay is where it belongs: `close`, or the frame the browser has
-            // just handed the keyboard. Moving focus to `close` fires one more `focusin`, and this
-            // check is what stops that from looping.
-            if (target instanceof Node && node.contains(target)) return;
-            overlayClose.current?.focus();
-        };
-
-        document.addEventListener("keydown", onKeyDown);
-        document.addEventListener("focusin", onFocusIn);
-        return () => {
-            document.removeEventListener("keydown", onKeyDown);
-            document.removeEventListener("focusin", onFocusIn);
-        };
-    }, [voice]);
-
-    // The trap above still leaves one hole. The frame is cross-origin, so the Tab that ends its own
-    // tab chain is handled inside the frame: Chrome parks focus on `document.body`, which fires no
-    // `focusin`, and the guard never sees the move. The next Tab then starts from the top of the
-    // page and walks the contact form behind the modal. `inert` closes it: every sibling of the
-    // widget is out of the tab order and off the pointer while the overlay is open, so there is
-    // nowhere on the page for that focus to land. Only the nodes marked here are cleared again.
-    useEffect(() => {
-        if (!voice) return;
-        const self = root.current;
-        if (!self) return;
-
-        // The widget is a direct child of `body` today, but a layout wrapper would make that
-        // untrue: walk to the node whose parent is `body` and spare that one instead. A widget the
-        // walk cannot reach means nothing to spare, so nothing is marked.
-        let keep: HTMLElement | null = self;
-        while (keep && keep.parentElement !== document.body) keep = keep.parentElement;
-        if (!keep) return;
-
-        for (const child of Array.from(document.body.children)) {
-            if (!(child instanceof HTMLElement) || child === keep) continue;
-            // Somebody else's state: inert before this overlay opened, so not ours to clear.
-            if (child.inert) continue;
-            child.inert = true;
-            inerted.current.push(child);
-        }
-
-        return () => {
-            for (const element of inerted.current) element.inert = false;
-            inerted.current = [];
-        };
-    }, [voice]);
+    // The voice overlay owns its own focus trap, inert flags and Escape: it is a modal in our own
+    // page now, so nothing has to be reached through a cross-origin frame.
 
     // The overlay declares itself modal, so a text reply that lands while it is open must not pull
     // focus back into the chat behind it. A ref, so the fetch callback reads the current value.
@@ -267,26 +202,23 @@ function Assistant() {
     }, [voice]);
 
     useEffect(() => {
-        if (!open && !voice) return;
+        // The voice overlay handles Escape itself, so this only ever closes the chat panel.
+        if (!open || voice) return;
         const onKeyDown = (event: KeyboardEvent) => {
             if (event.key !== "Escape") return;
-            if (voice) {
-                closeVoice();
-                return;
-            }
             setOpen(false);
             launcher.current?.focus();
         };
         document.addEventListener("keydown", onKeyDown);
         return () => document.removeEventListener("keydown", onKeyDown);
-    }, [open, voice, closeVoice]);
+    }, [open, voice]);
 
     // A route change swaps the page under the widget, never the widget itself. Left alone, the
     // panel and the voice overlay stayed open across a Back press, and the inert flags kept the new
     // page unreachable - the modal outlived the page it was opened over. Closing both here stands
-    // the guard down, unmounts the frame (ending the session) and lets the inert effect clear its
-    // own nodes. Focus is deliberately not moved: the visitor pressed a link or a Back button, so
-    // the destination decides where the keyboard goes. Returning it to the launcher would steal
+    // the guard down, unmounts the voice panel (ending its session) and lets its inert effect clear
+    // its own nodes. Focus is deliberately not moved: the visitor pressed a link or a Back button,
+    // so the destination decides where the keyboard goes. Returning it to the launcher would steal
     // focus from the new page while the widget itself was never touched. The first render is not a
     // change, so it closes nothing.
     useEffect(() => {
@@ -517,6 +449,7 @@ function Assistant() {
                         >
                             {url ? (
                                 <button
+                                    ref={talk}
                                     type="button"
                                     onClick={() => setVoice(true)}
                                     className={SMALL_CONTROL}
@@ -560,45 +493,7 @@ function Assistant() {
             ) : null}
 
             {voice && url ? (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-4 [@media(max-width:640px)]:p-0">
-                    <div
-                        ref={overlay}
-                        id={OVERLAY_ID}
-                        role="dialog"
-                        aria-modal="true"
-                        aria-labelledby={`${OVERLAY_ID}-title`}
-                        className="flex h-full max-h-[720px] w-full max-w-[640px] flex-col border border-foreground/15 bg-background [@media(max-width:640px)]:max-h-none [@media(max-width:640px)]:max-w-none [@media(max-width:640px)]:border-0"
-                    >
-                        <div className="flex h-10 shrink-0 items-center justify-between border-b border-foreground/15 px-3">
-                            <p
-                                id={`${OVERLAY_ID}-title`}
-                                className="font-mono text-[11px] text-muted lowercase"
-                            >
-                                voice
-                            </p>
-                            <button
-                                ref={overlayClose}
-                                type="button"
-                                onClick={closeVoice}
-                                className={`${RING} cursor-pointer font-mono text-[11px] lowercase`}
-                            >
-                                close
-                            </button>
-                        </div>
-                        <p className="shrink-0 border-b border-foreground/15 px-3 py-2 text-[13px] leading-[1.6] [text-wrap:pretty]">
-                            The microphone switches on inside the agent, with its own button.
-                        </p>
-                        {/* Mounted only while the overlay is open: unmounting ends the session and
-                            releases the microphone stream. */}
-                        <iframe
-                            src={url}
-                            title="Voice assistant"
-                            allow="microphone; autoplay; camera"
-                            referrerPolicy="no-referrer"
-                            className="block min-h-0 w-full flex-1 border-0"
-                        />
-                    </div>
-                </div>
+                <VoicePanel origin={url} token={token} onToken={setToken} onClose={closeVoice} />
             ) : null}
         </div>
     );
