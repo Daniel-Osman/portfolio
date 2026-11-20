@@ -203,6 +203,8 @@ Layout: 1440x900 - `scrollWidth` 1440 = `clientWidth`, no horizontal overflow, t
 
 0.72 is the first value clear of the 0.707 threshold: 12 pinholes, against 23 at 0.71 and 39 at 0.70. It was chosen over the larger values because the body must not fatten past the cell the layout already reserves.
 
+**Follow-up, radius 0.62 (`f0113ad`, 2026-11-20):** the shipped radius is now `cell * 0.62`, below the closing threshold. 0.72 was the solid setting; 0.62 opens the lattice on purpose, so the diagonal gaps stay visible. Fish bodies now read as finer beaded dots rather than solid shapes; the clay patch and the eyes still read, and the type dimming is unchanged. No enclosed-pinhole count was taken at 0.62 — the table above measures the closed end of the range and is kept as the record behind 0.72. Reduced motion still draws one frame, and that frame goes through the same `paint()`, so it carries the 0.62 dots too. Gates on `f0113ad`: `npx tsc --noEmit` exit 0, `npm run lint` exit 0, `npm run build` exit 0 on the first run, `npm run format:check` exit 0. Deployment `f0113ad` (`dpl_56JTFsEJD3LXWoFjwaDDrryaWg74`): production, state **Ready**, build log `Commit: f0113ad`, aliased to `https://danielosman.com`. Live home checked at 1440 and 360: pond runs, zero page errors.
+
 **Cost** (direct draw timing, per frame): 0.603 ms with squares → 0.634 ms with circles at 1440; the difference is inside noise at 360. About 1.2k arcs a frame across the school.
 
 **Gates** (Windows, Node 24.22.3, final tree, output seen):
