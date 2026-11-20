@@ -243,15 +243,16 @@ export default function Pond({
             const sway = (u: number) => Math.sin(f.phase - u * 3.4) * Math.pow(u, 1.55) * 2.6;
 
             // Round pixels: one arc per cell, about 1.2k a frame across the school, which is
-            // dearer than a rect. The radius fills the lattice: below ~0.71 a cell the gaps
-            // between diagonal neighbours show as pinholes inside the body.
+            // dearer than a rect. The radius decides whether the lattice closes. At 0.62 the
+            // dots pull apart and the body reads as a dot board rather than a solid shape;
+            // 0.72 was the most solid setting measured.
             const paint = (x: number, y: number, colour: string) => {
                 ctx.fillStyle = colour;
                 ctx.beginPath();
                 ctx.arc(
                     Math.round(x - cell / 2) + cell / 2,
                     Math.round(y - cell / 2) + cell / 2,
-                    cell * 0.72,
+                    cell * 0.62,
                     0,
                     Math.PI * 2
                 );
