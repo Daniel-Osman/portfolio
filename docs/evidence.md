@@ -219,3 +219,91 @@ Layout: 1440x900 - `scrollWidth` 1440 = `clientWidth`, no horizontal overflow, t
 **Live check:** home loaded in Daniel's Chrome at 1440 and 360 — the pond animates, the fish bodies read as solid, zero page errors. No regression in the pellets, the `[data-pond-avoid]` avoidance or the reduced-motion still frame, which were not touched.
 
 **Open:** the fish now cost ~0.03 ms more a frame at 1440. That is recorded, not optimised away; a batched path would be the next step if the frame budget ever matters. The empty-SSR defect in `project-view.tsx` (F-19) is unrelated and still open.
+
+## R-03 - case studies render on the server (2026-11-20, `33db0c2`)
+
+**Scope:** F-19. `src/app/components/project-view.tsx` returned `null` while `isMobile` was `null` - every server render - so all seven `/projects/[slug]` pages shipped a `<body>` holding only the skip link, while their metadata rendered normally and hid the gap from a title check. 1 file, +7 / -4.
+
+**Changed:** the `isMobile === null` half of the guard is gone; `!project?.page` still returns `null`. The nav switch is untouched: the server and the first client render both read a null `isMobile`, so `TopNav` ships in the HTML and a phone swaps to `MobileNav` on hydration. Both navs are `position: fixed`, so the swap moves nothing below them. A second defect surfaced in the new browser pass and was fixed in the same commit: the about paragraph was `<p class="... mt-8"><p>` - nested paragraphs, which the HTML parser closes early, so the first build of the fix threw React error #418 (hydration mismatch) on all seven pages. `ProseText` already accepted a `className`, so it now takes the classes and renders one `<p>`.
+
+**Before** (`next start` of `0333fd5`, `curl -s /projects/helm`): 10,274 bytes, `<h1>` count **0**, body text `Skip to content` plus the RSC payload.
+
+**After** (production `next start` of the fixed tree, `curl -s /projects/<slug>`):
+
+| slug        | bytes | `<h1>`                        | `<h2>` | project nav                                             | chars in `main` |
+| ----------- | ----- | ----------------------------- | ------ | ------------------------------------------------------- | --------------- |
+| helm        | 15806 | Helm                          | 4      | Americorp International / NFD Express                   | 1481            |
+| nfd-express | 16062 | NFD Express                   | 4      | Helm / Tasteology                                       | 1600            |
+| americorp   | 15442 | Americorp International       | 3      | StreamLnk / Helm                                        | 1146            |
+| isr         | 15287 | International Skills Resource | 3      | MyWiki / First Mate / StreamLnk                         | 1145            |
+| mywiki      | 15405 | MyWiki / First Mate           | 3      | Tasteology / International Skills Resource              | 1161            |
+| streamlnk   | 15747 | StreamLnk                     | 4      | International Skills Resource / Americorp International | 1453            |
+| tasteology  | 14657 | Tasteology                    | 2      | NFD Express / MyWiki / First Mate                       | 823             |
+
+`helm` also carries its tagline `A control layer for agent-assisted work.` and the four headings `Why it exists` / `The system` / `Where it stands` / `where it stands`.
+
+**No visible change**, measured in Daniel's Chrome against production `0333fd5` at 1440x900 and 360x740 (emulated device viewport, `document.body.innerText.length` / `document.body.scrollHeight`):
+
+| slug        | 1440 prod   | 1440 new    | 360 prod    | 360 new     |
+| ----------- | ----------- | ----------- | ----------- | ----------- |
+| helm        | 1522 / 2116 | 1522 / 2116 | 1507 / 2354 | 1507 / 2354 |
+| nfd-express | 1646 / 2187 | 1646 / 2187 | 1631 / 2429 | 1631 / 2429 |
+| americorp   | 1180 / 1962 | 1180 / 1962 | 1165 / 2013 | 1165 / 2013 |
+| isr         | 1179 / 1980 | 1179 / 1980 | 1164 / 2020 | 1164 / 2020 |
+| mywiki      | 1205 / 1989 | 1205 / 1989 | 1190 / 2042 | 1190 / 2042 |
+| streamlnk   | 1499 / 2125 | 1499 / 2125 | 1484 / 2314 | 1484 / 2314 |
+| tasteology  | 855 / 1771  | 855 / 1771  | 840 / 1714  | 840 / 1714  |
+
+Full-page screenshot diff of `/projects/helm` against production: **0 changed pixels** of 1,354,560 at 1440 and 0 of 376,560 at 360. `document.documentElement.scrollWidth` equals `clientWidth` on every page at both widths.
+
+**Console:** all seven pages at 1440 and 360, hydration errors **0**, the only entry Daniel's own Chrome extension (`Permissions policy violation: unload is not allowed in this document.`). The first build of the fix logged React #418 on all seven at both widths - that is the failure this pass exists to catch, and it is fixed in the commit.
+
+**Gates** (Windows, Node 24.22.3, final tree, output seen):
+
+- `npx tsc --noEmit` -> exit 0
+- `npm run lint` -> exit 0
+- `npm run build` -> exit **0** on the first run (17 route entries, 14/14 static pages; the standing 16.4.3 advisory did not trip this time)
+- `npm run format:check` -> exit **1**, then exit 0 on the same tree: the first run flagged `NOW.md` for CRLF line endings from the checkout, `prettier --write` normalised them, and `git diff --numstat` reports no content change for the file.
+
+**Deploy:** `33db0c2` was pushed together with `9be2cd1`, so the Vercel Git integration built one production deployment for the head, `dpl_6Ejo5xyCiv9dpqyWyVKasWgQGPR5` (state **Ready**, build log `Commit: 9be2cd1`, aliased to `https://danielosman.com`) - which contains both commits.
+
+## R-04 - social preview image (2026-11-20, `9be2cd1`)
+
+**Scope:** F-20. No `og:image` existed, so a shared link showed no picture. New `src/app/opengraph-image.tsx`, plus `layout.tsx` (`twitter: { card: "summary_large_image" }`) and one line in `projects/[slug]/page.tsx`.
+
+**Design:** 1200x630, `ImageResponse` from `next/og`, `runtime = "nodejs"`. Ground `#1a1917` and text `#fff7f0` are the real `--color-dark-background` / `--color-dark-foreground` tokens from `globals.css`; clay `#d95f2b` appears once, as a 52x3 mark above the name; a 1px rule at 16% of the foreground separates the name block from the footer. "Daniel Osman" at 108 px Geist Sans Medium, the role line from `profile.role` at 34 px in 62% foreground, `danielosman.com` at 22 px Geist Mono in 55% foreground, bottom-left. No gradient, no shadow, no stock shape. Fonts are read once at module scope with `fs.readFileSync` from `node_modules/geist/dist/fonts/` - `Geist-Regular.ttf`, `Geist-Medium.ttf`, `GeistMono-Regular.ttf` - and passed to `fonts`, so nothing is fetched over the network at build or request time. Exports: `alt` = "Daniel Osman - full-stack developer and AI systems builder", `contentType` = `image/png`, `size` = 1200x630, `runtime` = `nodejs`.
+
+**Why `[slug]/page.tsx` is touched:** that page returns its own `openGraph` object, which replaces the root one instead of merging with it, so without `images: ["/opengraph-image"]` the detail pages shipped no `og:image` at all. Named explicitly there; the root pages inherit the file convention automatically.
+
+**Route:** `/opengraph-image` appears in the build's route table as `○ (Static)` - generated once at build time, not per request.
+
+**Local `next start`:**
+
+- `curl -sI /opengraph-image` -> `HTTP/1.1 200`, `content-type: image/png`; body 40,788 bytes, PNG header `1200x630`. No `content-length` header - the response is chunked, so the byte count is the measured body.
+- `<head>` on `/` and `/projects/helm`: `og:image` and `twitter:image` absolute (`https://danielosman.com/opengraph-image?5fa09980fc348326` on the root pages, `https://danielosman.com/opengraph-image` on the detail pages), `twitter:card summary_large_image`, `og:image:type image/png`, `1200x630`, and the `alt` text. `/projects`, `/about` and `/contact` carry the same pair.
+- The PNG was saved to `docs/evidence/og-image.png` and inspected by eye: name, role line, clay tick, hairline rule and mono domain are sharp, on-token, and nothing is clipped or overlapping.
+
+**Gates** (Windows, Node 24.22.3, final tree, output seen):
+
+- `npx tsc --noEmit` -> exit 0
+- `npm run lint` -> exit 0
+- `npm run build` -> exit **0** on the first run (17 route entries, 15/15 static pages, `/opengraph-image` static)
+- `npm run format:check` -> exit **1** on the first attempt, flagging the new file (prettier wants different JSX indentation around `new ImageResponse(`); `prettier --write src/app/opengraph-image.tsx`, then all four gates re-run on the formatted tree -> 0, 0, 0, 0.
+
+**Deploy:** commit `9be2cd1` on `main`, pushed; the Vercel Git integration built production. `dpl_6Ejo5xyCiv9dpqyWyVKasWgQGPR5`, `target: production`, state **Ready**, build log `Cloning github.com/Daniel-Osman/portfolio (Branch: main, Commit: 9be2cd1)`, aliased to `https://danielosman.com` and `https://www.danielosman.com`.
+
+**Live check on `https://danielosman.com`:**
+
+| Route                   | Result                                                                           |
+| ----------------------- | -------------------------------------------------------------------------------- |
+| `/`                     | 200, `text/html`, 11,862 bytes                                                   |
+| `/projects`             | 200, 12,264 bytes                                                                |
+| `/about`                | 200, 12,029 bytes                                                                |
+| `/contact`              | 200, 19,199 bytes                                                                |
+| `/projects/helm`        | 200, 16,795 bytes: `<h1>Helm</h1>`, tagline, four headings, `Project navigation` |
+| `/projects/nfd-express` | 200, 17,051 bytes                                                                |
+| `/opengraph-image`      | 200, `image/png`, 40,788 bytes                                                   |
+
+Live `<head>`: `og:image` + `twitter:image` absolute on both `/` and `/projects/helm`, `twitter:card summary_large_image`. The live PNG is 40,788 bytes, the same as the committed `docs/evidence/og-image.png`.
+
+**Open:** the card is type-only by design (no media, no stock shape). A photographic or drawn card would need Daniel's own asset; the mechanism is in place.
