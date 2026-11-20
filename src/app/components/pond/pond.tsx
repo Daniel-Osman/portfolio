@@ -66,6 +66,7 @@ export default function Pond({
         let width = 0;
         let height = 0;
         let cell = 8;
+        let radius = 3;
         let fish: Fish[] = [];
         let pellets: Pellet[] = [];
         let avoid: Box[] = [];
@@ -83,6 +84,7 @@ export default function Pond({
             ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
             // A little coarser on phones, where the pond is smaller.
             cell = width < 700 ? 7 : 9;
+            radius = (cell - 1 / dpr) / 2;
 
             const base = canvas.getBoundingClientRect();
             avoid = Array.from(document.querySelectorAll<HTMLElement>(AVOID))
@@ -243,16 +245,16 @@ export default function Pond({
             const sway = (u: number) => Math.sin(f.phase - u * 3.4) * Math.pow(u, 1.55) * 2.6;
 
             // Round pixels: one arc per cell, about 1.2k a frame across the school, which is
-            // dearer than a rect. The radius decides whether the lattice closes. At 0.62 the
-            // dots pull apart and the body reads as a dot board rather than a solid shape;
-            // 0.72 was the most solid setting measured.
+            // dearer than a rect. The radius is gap-derived, not shape-derived: neighbours sit
+            // one `cell` apart, so (cell - 1 / dpr) / 2 leaves exactly one device pixel of
+            // untouched canvas between their edges; diagonals are cell * √2 apart, never meet.
             const paint = (x: number, y: number, colour: string) => {
                 ctx.fillStyle = colour;
                 ctx.beginPath();
                 ctx.arc(
                     Math.round(x - cell / 2) + cell / 2,
                     Math.round(y - cell / 2) + cell / 2,
-                    cell * 0.62,
+                    radius,
                     0,
                     Math.PI * 2
                 );
