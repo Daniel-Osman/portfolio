@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import ContactForm from "@/app/components/contact-form";
 import SiteNav from "@/app/components/site-nav";
+import VoiceAgent from "@/app/components/voice-agent";
 import { isEmail } from "@/lib/contact-rules";
 
 export const metadata: Metadata = {
@@ -45,6 +46,8 @@ export default function ContactPage() {
                 </header>
 
                 <ContactForm fallbackAddress={fallbackAddress()} />
+
+                <VoiceAgent />
             </main>
         </div>
     );

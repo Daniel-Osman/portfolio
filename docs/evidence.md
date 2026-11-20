@@ -309,3 +309,40 @@ Live `<head>`: `og:image` + `twitter:image` absolute on both `/` and `/projects/
 The ledger commit `ac816c4` (docs only) rebuilt the same code tree as `dpl_Nk8waCALeyCAHxnwKma5jFwyzjtg` (production, state **Ready**, build log `Commit: ac816c4`, aliased to `https://danielosman.com`); the seven routes above answered 200 again after it, so production serves `main` and `main`'s code is `9be2cd1`. Later ledger-only commits rebuild the same tree and are not recorded again.
 
 **Open:** the card is type-only by design (no media, no stock shape). A photographic or drawn card would need Daniel's own asset; the mechanism is in place.
+
+## R-05 - voice agent entry on `/contact` (2026-11-20)
+
+**Scope:** one client component, `src/app/components/voice-agent.tsx`, rendered after `<ContactForm>` on `/contact`; one line in `.env.example`. No dependency, no gateway change, no other page, no form or API change.
+
+**Config gate.** The address is `process.env.NEXT_PUBLIC_VOICE_GATEWAY_URL`, which Next inlines into the client bundle at build time. If it is missing, or does not parse as an `http`/`https` URL, the component returns `null` before rendering anything: no label, no button, no shell. Production has no such var yet, so the live page must stay unchanged. Verified by building with `.env.local` moved aside and no shell value: `/contact` answered 200 at **20,093 bytes** with **0** occurrences of `voice-label`, `start voice`, `3101` or `open in a new tab`; `document.body.innerText` length and `scrollHeight` matched live production exactly at both widths - 391 / 1166 at 1440 and 376 / 1291 at 360. With the var set at `http://127.0.0.1:3101`, the value appears once in the client chunk (`.next/static/chunks/0…js`) and nowhere in the server HTML, because the frame only mounts on click.
+
+**Copy and shape.** A `voice` label in mono 12 px lowercase, a two-line paragraph ("Ask by voice instead. The agent answers out loud. It runs on my own machine and may be offline."), and a `start voice` pill button using the same `.focus-ring`, size and fill as the form's `send`. Clicking mounts the frame: `title="Voice agent"`, `allow="microphone; camera; autoplay"`, `referrerPolicy="no-referrer"`, `border border-foreground/15` on the wrapper, no rounding, `h-[560px] lg:h-[min(78vh,720px)]`. Nothing animates - `getComputedStyle(section).animationName` is `none`, so there is nothing to suppress under reduced motion.
+
+**Measured in Chromium at 1440x900 and 360x740, `next start` on :3121, gateway live on `127.0.0.1:3101`:**
+
+| Check               | 1440                                                                  | 360                                                    |
+| ------------------- | --------------------------------------------------------------------- | ------------------------------------------------------ |
+| `main` box          | x 272, w 896 (56rem)                                                  | x 0, w 360                                             |
+| panel box           | x 296, w 848                                                          | x 24, w 312                                            |
+| iframe box          | x 297, w 846, h 702 = `min(78vh,720)`                                 | x 25, w 310, h 560                                     |
+| horizontal overflow | `scrollWidth` 1440 = `clientWidth`                                    | `scrollWidth` 360 = `clientWidth`, no overflowing node |
+| frame document      | heading `You speak, I orchestrate.` x1, button `Enable microphone` x1 | same                                                   |
+
+Frame text read from inside the document, not assumed: `qwen-audio-agent`, `REALTIME VOICE · LIVE`, `Gemini 3.8 Live`, `Library`, `New session`, `Enable microphone`, `Enable video`, `You speak, I orchestrate.`, `Try saying …`, `Send`. Status line shows `starting…` while the frame loads and is **empty** after the `load` event. Tab reaches `start voice` with a `solid 1px` outline at `6px` offset - the same ring as the submit button. `stop` unmounts: `iframe` count 0, `window.frames.length` 0, and `start voice` returns.
+
+**Failure path - one measurement changed the design.** With `NEXT_PUBLIC_VOICE_GATEWAY_URL=http://127.0.0.1:3999` (nothing listening) the first build of this component reached the ready state: Chrome fires `load` on an iframe after painting its own "connection refused" page, so `onLoad` cannot tell a dead gateway from a live one, and the cross-origin document cannot be read either. A `fetch(url, { mode: "no-cors", cache: "no-store" })` probe can: measured inside the page, the dead port rejected with `TypeError: fetch failed` in **9 ms** and the live gateway resolved in **8 ms**. The component now runs that probe alongside the frame and keeps the 12-second timer as the backstop for a connection that hangs. Re-measured on the dead port: `iframe` count 0, the polite live region reads `the agent is not reachable.`, the panel shows "The agent is not reachable. It runs on my own machine, so it may be offline right now." with `try again` and `open in a new tab`; `try again` logged two fresh failed requests (frame + probe) and returned to the same state. On the live gateway the probe never rejected: 0 failed requests to `3101`, frame mounted, heading and mic button present.
+
+**One honest gap in the agent's own layout:** inside the 310 px frame at 360 the agent document has `scrollWidth` 320, so its `Enable microphone` button (x 210 to 331) is clipped by 21 px on a phone. That is the gateway's own layout at that width, and the gateway repo is out of scope here. The page states it: the line under the panel says some browsers refuse the microphone inside a frame and a phone leaves the panel narrow, and the `open in a new tab` link is present in every state, with `rel="noopener noreferrer"`.
+
+**Screenshots:** `docs/evidence/voice-entry-1440.png` (221,041 bytes) and `docs/evidence/voice-entry-360.png` (130,181 bytes), both inspected by eye: hairline, label, copy, panel and the two hint lines read correctly, the panel is inset inside the 56rem column, and the frame renders the agent's own UI. The fixed top nav paints mid-page in a full-page screenshot at both widths; that is fixed chrome, not layout.
+
+**Gates** (Windows, Node 24.22.3, final tree, output seen):
+
+- `npx tsc --noEmit` -> exit 0
+- `npm run lint` -> exit 0
+- `npm run build` -> exit **1** on the first run with the Next 16.4.3 advisory, exit **0** on the retry (the known `SecurityFatalError`; it also hit the two throwaway builds for the dead port and for the unset var, and each retried to 0)
+- `npm run format:check` -> exit **1** twice earlier in the work (`src/app/components/voice-agent.tsx` both times, `prettier --write` then green), and exit **1** once on the final tree flagging this entry (`docs/evidence.md`); `prettier --write docs/evidence.md`, then the check on the final tree -> **0**
+
+**Console:** zero messages on `/contact` in a fresh Chromium, with the frame mounted and after `stop`.
+
+**Open:** the microphone itself is still unproven inside the frame. The `allow="microphone"` attribute and the hint are in place, the gateway's app page sets no `X-Frame-Options` and no CSP, and `127.0.0.1` is a secure context, but no one has spoken into it. Also unproven: the same panel over `https` (a live gateway would have to be `https`, or the browser blocks the frame as mixed content).
