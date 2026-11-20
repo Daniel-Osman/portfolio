@@ -20,6 +20,7 @@ export const metadata: Metadata = {
         description:
             "Independent developer and product-minded builder in Lebanon, working where software, automation and real operations meet.",
     },
+    twitter: { card: "summary_large_image" },
 };
 
 /* Applied before first paint, so the page never flashes the wrong theme. */

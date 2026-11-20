@@ -25,6 +25,9 @@ export async function generateMetadata({
             type: "article",
             title: `${project.name} | Daniel Osman`,
             description: project.description,
+            // This object replaces the root openGraph, so name the shared preview image here
+            // too; without it the page ships no og:image at all.
+            images: ["/opengraph-image"],
         },
     };
 }
