@@ -8,6 +8,17 @@ import { useGlobal } from "@/app/providers";
 
 const BODY = "text-[16px] leading-[1.7] [text-wrap:pretty]";
 
+/**
+ * The quiet row of accounts under the closing note. Only the ones Daniel confirmed are
+ * listed, so a missing account leaves no empty anchor behind.
+ */
+const ELSEWHERE = [
+    { label: "github", href: profile.github },
+    { label: "linkedin", href: profile.linkedin },
+    { label: "x", href: profile.x },
+    { label: "hugging face", href: profile.huggingFace },
+].filter((account): account is { label: string; href: string } => account.href !== null);
+
 export default function AboutView() {
     const { isMobile } = useGlobal();
     if (isMobile === null) return null;
@@ -68,6 +79,27 @@ export default function AboutView() {
                         comes straight to me. I answer it myself, usually within two business days.
                     </p>
                 </section>
+
+                {ELSEWHERE.length ? (
+                    <section className="mt-16 border-t border-foreground/15 pt-5">
+                        <h2 className="font-mono text-[12px] text-muted lowercase">elsewhere</h2>
+                        <ul className="mt-3 flex flex-wrap items-baseline gap-x-5 gap-y-2 font-mono text-[13px] text-muted">
+                            {ELSEWHERE.map((account) => (
+                                <li key={account.label}>
+                                    <a
+                                        href={account.href}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        aria-label={`${account.label} (opens in a new tab)`}
+                                        className="focus-ring transition-colors hover:text-foreground focus-visible:text-foreground"
+                                    >
+                                        {account.label}
+                                    </a>
+                                </li>
+                            ))}
+                        </ul>
+                    </section>
+                ) : null}
             </main>
         </div>
     );

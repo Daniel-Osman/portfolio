@@ -1,7 +1,7 @@
 /**
  * Original content drafted for Daniel's portfolio.
- * Contact details stay null until Daniel confirms the public address and
- * permissions. Do not guess a domain, email, GitHub or LinkedIn URL.
+ * The public accounts below were confirmed by Daniel on 2026-11-20.
+ * Email and website stay null until he confirms them. Do not guess a URL.
  */
 export const profile = {
     name: "Daniel Osman",
@@ -34,9 +34,14 @@ export const profile = {
             detail: "Rhino/Grasshopper, Archicad, Blender, algorithmic AEC workflows and visualization experiments.",
         },
     ],
-    // Fill these after confirming public-facing accounts and permissions.
+    /*
+     * Confirmed by Daniel on 2026-11-20. `huggingFace` keeps his spelling: the handle is
+     * `Daneil960`, and `Daniel960` does not resolve.
+     */
     email: null as string | null,
-    github: null as string | null,
-    linkedin: null as string | null,
+    github: "https://github.com/Daniel-Osman" as string | null,
+    linkedin: "https://www.linkedin.com/in/danielosmancom/" as string | null,
+    x: "https://x.com/_Daniel_Osman" as string | null,
+    huggingFace: "https://huggingface.co/Daneil960" as string | null,
     website: null as string | null,
 } as const;
