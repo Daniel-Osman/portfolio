@@ -26,8 +26,11 @@ function projectHref(project: Project) {
 export default function ProjectsView() {
     const { isMobile } = useGlobal();
 
-    if (isMobile === null) return null;
-
+    /*
+     * No `isMobile === null` gate: the server and the first client render both read a null
+     * `isMobile`, so the desktop strip and every thumb are in the HTML and hydration matches.
+     * A phone swaps its own list in on hydration; neither nav moves the page.
+     */
     if (isMobile) {
         return (
             <div className="min-h-dvh w-full bg-background">

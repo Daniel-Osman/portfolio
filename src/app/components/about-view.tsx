@@ -21,8 +21,12 @@ const ELSEWHERE = [
 
 export default function AboutView() {
     const { isMobile } = useGlobal();
-    if (isMobile === null) return null;
 
+    /*
+     * No `isMobile === null` gate: the server and the first client render both read a null
+     * `isMobile`, so the about copy is in the HTML and hydration matches. A phone swaps the
+     * nav in on hydration; both navs are fixed, so nothing below them moves.
+     */
     return (
         <div className="min-h-dvh w-full bg-background">
             {isMobile ? <MobileNav /> : <TopNav />}

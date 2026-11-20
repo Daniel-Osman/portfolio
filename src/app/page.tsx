@@ -15,8 +15,11 @@ export default function HomePage() {
     const { isMobile } = useGlobal();
     const [stats, setStats] = useState<PondStats>({ fish: 0, pellets: 0 });
 
-    if (isMobile === null) return null;
-
+    /*
+     * No `isMobile === null` gate: the server and the first client render both read a null
+     * `isMobile`, so the copy is in the HTML and hydration matches. A phone swaps the nav and
+     * the layout over on hydration; both navs are fixed, so nothing below them moves.
+     */
     return (
         <div className="relative h-[100dvh] w-full overflow-hidden bg-background">
             <Pond className="absolute inset-0 h-full w-full" onStats={setStats} />
