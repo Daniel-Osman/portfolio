@@ -144,14 +144,18 @@ Empty submit: 5 inline errors, `aria-invalid` on 4 controls + `aria-describedby`
 Layout stability: submit button `top` 964 → 964 at 1440 (doc 1166 → 1166); 1060 → 1060 at 360 (doc 1291 → 1291); every reserved error line measures 18 px, one line, at 360.
 Failure with `CONTACT_TO` set: 502 → "The message did not send. Your text is still here. Email inbox@danielosman.com and I will reply from there.", `href="mailto:inbox@danielosman.com"`, all typed values preserved. Failure with `CONTACT_TO` unset: same copy without the address or the link.
 Throttle: after five calls from the browser's own bucket, submit → "Too many messages just now. Try again in a few minutes. Email inbox@danielosman.com and I will reply from there."
+
+The address in those quoted strings is the value set locally for that run. Production sets `CONTACT_TO` to `daniel@danielosman.com`, so production renders that address instead.
 Mobile nav at 360: menu lists pond / projects / about / contact, `contact` marked "here".
 Console: 0 messages on load; the only entry after a failed submit is Chrome's own record of the intentional 502, as with the 404 note above. Reduced motion: `main` animation `none`. Light and dark both rendered.
 
 **Negative:** `/contact` was prerendered at build, so `fallbackAddress()` baked in the build-time (empty) env and the `mailto:` never rendered in production even with `CONTACT_TO` set. Fixed with `export const dynamic = "force-dynamic"` and re-verified (`/"copy":true,"mailto":"mailto:inbox@danielosman.com"`). Also: `validateContact` judged untrimmed input, so a name of spaces passed — the script caught it, and validation now trims first.
 
-**Open / unproven:** no key exists here, so **no real email was sent and the success state was never rendered**; delivery is unproven end to end. The 504 "could not confirm" copy is not exercised live (it needs a hung Resend). Preview deployment only; nothing promoted.
+**Open / unproven at the time:** no key existed on this box, so no real email had been sent from a local run and the success state was only exercised through the fake `fetch` script. (Superseded on 2026-11-20: see **Delivery, proven** below.) The 504 "could not confirm" copy is still not exercised live — it needs a hung Resend. Preview deployment only at this point; nothing promoted.
 
-**Deploy (preview only, 2026-11-20):** branch `contact/phase-1` pushed; `vercel deploy --yes` → `dpl_d8g8mmvbg`, `target: preview`, state Ready, https://portfolio-d8g8mmvbg-daniel-osmans-projects.vercel.app. Preview URLs are protected (`all_except_custom_domains`): anonymous `GET /contact` → 302 to `vercel.com/sso-api`, anonymous `POST /api/contact` → 401. Through `vercel curl --deployment …`: `GET /contact` → 200 with the full form and `fallbackAddress: null`; `POST /api/contact` (valid body) → `503 {"ok":false,"error":"not_configured"}`, exactly as expected with no env set. `main` was **not** pushed, because the Vercel Git integration turns a `main` push into a production deployment.
+**Deploy (preview only, 2026-11-20):** branch `contact/phase-1` pushed; `vercel deploy --yes` → `dpl_d8g8mmvbg`, `target: preview`, state Ready, https://portfolio-d8g8mmvbg-daniel-osmans-projects.vercel.app. Preview URLs are protected (`all_except_custom_domains`): anonymous `GET /contact` → 302 to `vercel.com/sso-api`, anonymous `POST /api/contact` → 401. Through `vercel curl --deployment …`: `GET /contact` → 200 with the full form and `fallbackAddress: null`; `POST /api/contact` (valid body) → `503 {"ok":false,"error":"not_configured"}`, exactly as expected with no env set. `main` was **not** pushed at this point, because the Vercel Git integration turns a `main` push into a production deployment.
+
+**Delivery, proven (2026-11-20, `a4dfd8e` on `main`, production):** the branch was merged to `main` as `a4dfd8e` and deployed; `https://danielosman.com/contact` is live and `/api/contact` runs dynamic. The three server-only env vars are set in Vercel for **Production and Preview**: `RESEND_API_KEY`, `CONTACT_FROM` (`Daniel Osman <hello@danielosman.com>`) and `CONTACT_TO` (`daniel@danielosman.com`), the last of which also renders as the public `mailto:` fallback. One real enquiry was sent through the live form on 2026-11-20 and the handler answered `{"ok":true}`; the message reached the inbox, so the send path is proven end to end. Resend separately accepted a sender test for `hello@danielosman.com`, so the from-address is verified at the provider, not just configured. The `503 not_configured` path is now the failure mode for a **missing** var only; the earlier "no real email has been sent" and "delivery unproven" statements are superseded by this record.
 
 ## R-01 - page loop removed (2026-11-20, `0bb9a09`)
 
@@ -180,4 +184,36 @@ Layout: 1440x900 - `scrollWidth` 1440 = `clientWidth`, no horizontal overflow, t
 
 **Deploy:** committed `0bb9a09` on `main`, pushed; the Vercel Git integration built production. `dpl_ERucsag7BMvVwsPVV1Lj5AuwrDs7`, `target: production`, status **Ready** at 01:44:08 +0200, build log line `Cloning github.com/Daniel-Osman/portfolio (Branch: main, Commit: 0bb9a09)`, aliases `https://danielosman.com`, `https://www.danielosman.com`, `portfolio-seven-orpin-35j0cxyw5s`, `portfolio-daniel-osmans-projects`, `portfolio-git-main-daniel-osmans-projects`. Live `curl` on `https://danielosman.com`: `/`, `/projects`, `/about`, `/contact`, `/projects/helm` -> **200**; `ssl_verify_result=0`; `www.danielosman.com` -> 308 to the apex; the `portfolio-daniel-osmans-projects.vercel.app` alias answers 302 (it redirects to the domain). The same DOM checks were repeated live: `/projects` 0 page navs, tile 558 px = `62vh`, no overflow; `/projects/helm` project nav with both neighbours; `/` hero `projects/about/contact`. The ledgers were then committed as `897b5bd` (docs only), which rebuilt the same code tree as `dpl_6QBV4JbUXBoFMv7n8pwRHMSh8DVY` (production, Ready, build log `Commit: 897b5bd`); the five routes answered 200 again. Production serves `main`, and `main`'s code is `0bb9a09`.
 
-**Honest note:** the Next 16.4.3 security advisory still makes the **first** `npm run build` exit non-zero on every run; the retry is what exits 0. The pinned version is Daniel's call and was not touched here. Nothing else is unproven.
+**Honest note:** the Next 16.4.3 security advisory still made the **first** `npm run build` exit non-zero at this point; the retry is what exits 0. The pinned version is Daniel's call and was not touched here. Nothing else is unproven.
+
+## R-02 - round fish pixels (2026-11-20, `ca5395f`)
+
+**Scope:** one visual change to the pond, through the `small:` path. `paint()` drew a `fillRect` per lattice cell; it now draws one arc per cell, radius `cell * 0.72`, centred on `Math.round(x - cell / 2) + cell / 2` so the snap is unchanged. Pellets stay square. 1 file, +12 / -1.
+
+**Radius rationale:** a square lattice of circles only closes when the radius reaches half the diagonal, `cell/√2 ≈ 0.707`; below that the diagonal gaps between neighbours show as pinholes inside the fish body. Enclosed-pinhole counts at 1440, one measurement per radius:
+
+| radius | enclosed pinholes |
+| ------ | ----------------- |
+| 0.58   | 9102              |
+| 0.64   | 1191              |
+| 0.68   | 102               |
+| 0.70   | 39                |
+| 0.71   | 23                |
+| 0.72   | 12                |
+
+0.72 is the first value clear of the 0.707 threshold: 12 pinholes, against 23 at 0.71 and 39 at 0.70. It was chosen over the larger values because the body must not fatten past the cell the layout already reserves.
+
+**Cost** (direct draw timing, per frame): 0.603 ms with squares → 0.634 ms with circles at 1440; the difference is inside noise at 360. About 1.2k arcs a frame across the school.
+
+**Gates** (Windows, Node 24.22.3, final tree, output seen):
+
+- `npx tsc --noEmit` → exit 0
+- `npm run lint` → exit 0
+- `npm run build` → exit **0** on the first run. The standing Next 16.4.3 `SecurityFatalError` did not reproduce this run; the retry it usually demands never happened.
+- `npm run format:check` → exit 0
+
+**Deploy:** `ca5395f` on `main`, pushed; the Vercel Git integration built production. State **Ready**, `target: production`, aliased to `https://danielosman.com`.
+
+**Live check:** home loaded in Daniel's Chrome at 1440 and 360 — the pond animates, the fish bodies read as solid, zero page errors. No regression in the pellets, the `[data-pond-avoid]` avoidance or the reduced-motion still frame, which were not touched.
+
+**Open:** the fish now cost ~0.03 ms more a frame at 1440. That is recorded, not optimised away; a batched path would be the next step if the frame budget ever matters. The empty-SSR defect in `project-view.tsx` (F-19) is unrelated and still open.

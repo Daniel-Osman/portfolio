@@ -62,13 +62,27 @@
 - [x] **F-15** - Contact Phase 1 ship: branch, push, Vercel preview
     - Acceptance: gates green on the final tree, evidence recorded, committed on a branch and pushed, a preview deployment (not promoted, and no push to `main`, which builds production) whose `/contact` answers; `NOW.md` names the env vars Daniel must add and what stays unproven.
     - Verify: quoted 2026-11-20 in `NOW.md` and `docs/evidence.md` — `192cbe4` on `contact/phase-1`, `vercel deploy` → `dpl_d8g8mmvbg` (preview, Ready), `/contact` 200 and `/api/contact` 503 through `vercel curl`.
+    - Superseded 2026-11-20 by F-17: the branch merged to `main` as `a4dfd8e` and delivery was proven live.
     - Files: `NOW.md`, `tasks/todo.md`, `docs/evidence.md`.
 - [x] **F-16** - Remove the shared page loop from the four top-level pages
     - Acceptance: `src/app/components/page-nav.tsx` deleted; `PageNav` and its import gone from `src/app/page.tsx`, `src/app/components/about-view.tsx`, `src/app/contact/page.tsx`, and from both branches of `src/app/components/projects-view.tsx`; the projects desktop layout restored to its pre-`332671a` state (`main` `flex h-full flex-col justify-center pt-12`, `DesktopStrip` direct, no `max-w-[56rem]`/`pb-8` block, tile `h-[min(62vh,42rem)]` with no media-height override); the project-to-project nav on `/projects/[slug]` untouched; the home hero `contact` link and the about sentence pointing at `/contact` kept; no `aria-label="Page navigation"` on `/`, `/projects`, `/about`, `/contact`; `/projects` has no horizontal overflow at 1440 and 360.
     - Verify: quoted 2026-11-20 in `NOW.md` and `docs/evidence.md` — `0bb9a09` on `main`; tsc 0, lint 0, build 1 then 0, format:check 0; `dpl_ERucsag7BMvVwsPVV1Lj5AuwrDs7` Ready on `main`; five routes 200 on `https://danielosman.com`.
     - Files: `src/app/page.tsx`, `src/app/components/{about-view,projects-view}.tsx`, `src/app/contact/page.tsx`, `NOW.md`, `tasks/todo.md`, `docs/evidence.md`.
+- [x] **F-17** - Contact Phase 1 merge and first real delivery
+    - Acceptance: `contact/phase-1` merged to `main`; the three env vars set in Vercel for Production and Preview; one real enquiry sent through the live form returns `{"ok":true}` and arrives in the inbox; `/api/contact` dynamic in production.
+    - Verify: quoted 2026-11-20 in `NOW.md` and `docs/evidence.md` — merge `a4dfd8e`; `https://danielosman.com/contact` live with `/api/contact` dynamic; live enquiry answered `{"ok":true}` and reached the inbox; Resend accepted a separate sender test for `hello@danielosman.com`.
+    - Files: `NOW.md`, `tasks/todo.md`, `docs/evidence.md`.
+- [x] **F-18** - Round pond fish pixels (`ca5395f`, `small:` path)
+    - Acceptance: `paint()` fills one arc per cell at radius `cell * 0.72` with the centre still snapped by `Math.round`; pellets stay square; no frame-cost regression beyond noise; fish bodies read solid at 1440 and 360.
+    - Verify: quoted 2026-11-20 in `NOW.md` and `docs/evidence.md` R-02 — tsc 0, lint 0, build 0 on the first run, format:check 0; 0.634 ms vs 0.603 ms a frame at 1440, inside noise at 360; 12 enclosed pinholes at 0.72 against 23 at 0.71 and 39 at 0.70; production Ready, aliased to `https://danielosman.com`, live home check clean.
+    - Files: `src/app/components/pond/pond.tsx`, `NOW.md`, `docs/evidence.md`.
+- [ ] **F-19** - Project detail pages ship an empty `<body>` server-side
+    - Acceptance: `/projects/[slug]` carries the case-study copy in the server HTML, so crawlers and no-JS visitors get the content, while the current client-side mobile/desktop switch keeps working; metadata unchanged.
+    - Open (2026-11-20): `src/app/components/project-view.tsx` returns `null` until `isMobile` resolves on the client, so the server body is empty; `metadata` still renders, which hides the gap from a title check.
+    - Verify: `curl -s https://danielosman.com/projects/helm` shows a story paragraph, plus `npx tsc --noEmit`, `npm run lint`, `npm run build`, `npm run format:check`.
+    - Files: `src/app/components/project-view.tsx`
 - [ ] **F-12** - Custom domain `danielosman.com` on the Vercel project
     - Acceptance: apex `A 76.76.21.21` and `www` `CNAME cname.vercel-dns.com` added at Cloudflare with the proxy off, domain verified in Vercel, certificate issued, `https://danielosman.com` returns 200, MX / SPF / `mail` records untouched.
-    - Blocked (partly closed 2026-11-20): the domain now answers — 200 on five routes, `ssl_verify_result=0`, `www` 308 → apex, aliased in Vercel — so what remains is the DNS-record and MX/SPF/`mail` check below.
+    - Open (2026-11-20): the domain is live — 200 on five routes, `ssl_verify_result=0`, `www` 308 → apex, aliased in Vercel — so what remains is the MX / SPF / `mail` record re-check; the DNS table in `NOW.md` is still the 2026-11-19 measurement.
     - Verify: `vercel domains inspect danielosman.com`
     - Files: -
