@@ -91,6 +91,11 @@ body {
     border-radius: 2px;
 }
 
+/* The same ring without the 2 px corner: the assistant stays sharp, focused or not. */
+.focus-ring.focus-ring-square:focus-visible {
+    border-radius: 0;
+}
+
 /* The home page's caret, blinking at the end of the opening line. */
 .caret {
     display: inline-block;
@@ -136,6 +141,20 @@ body {
 }
 .rise-3 {
     animation-delay: 280ms;
+}
+
+/* The assistant arrives late and quietly: one short fade, and nothing at all under reduced motion. */
+@keyframes agent-in {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+.agent-enter {
+    animation: agent-in 200ms ease both;
 }
 
 /*
@@ -197,6 +216,9 @@ body {
         animation: none;
     }
     .rise {
+        animation: none;
+    }
+    .agent-enter {
         animation: none;
     }
     :root[data-transition]::view-transition-old(root),

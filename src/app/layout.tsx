@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import { Providers } from "./providers";
+import AgentWidget from "./components/agent-widget";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -40,6 +41,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                     Skip to content
                 </a>
                 <Providers>{children}</Providers>
+                <AgentWidget />
             </body>
         </html>
     );
