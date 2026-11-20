@@ -304,6 +304,8 @@ Full-page screenshot diff of `/projects/helm` against production: **0 changed pi
 | `/projects/nfd-express` | 200, 17,051 bytes                                                                |
 | `/opengraph-image`      | 200, `image/png`, 40,788 bytes                                                   |
 
-Live `<head>`: `og:image` + `twitter:image` absolute on both `/` and `/projects/helm`, `twitter:card summary_large_image`. The live PNG is 40,788 bytes, the same as the committed `docs/evidence/og-image.png`.
+Live `<head>`: `og:image` + `twitter:image` absolute on both `/` and `/projects/helm`, `twitter:card summary_large_image`. The live PNG is 40,788 bytes, the same as the committed `docs/evidence/og-image.png` - SHA-256 `70155a1d…0f3efb70c89c4` for both.
+
+The ledger commit `ac816c4` (docs only) rebuilt the same code tree as `dpl_Nk8waCALeyCAHxnwKma5jFwyzjtg` (production, state **Ready**, build log `Commit: ac816c4`, aliased to `https://danielosman.com`); the seven routes above answered 200 again after it, so production serves `main` and `main`'s code is `9be2cd1`. Later ledger-only commits rebuild the same tree and are not recorded again.
 
 **Open:** the card is type-only by design (no media, no stock shape). A photographic or drawn card would need Daniel's own asset; the mechanism is in place.
