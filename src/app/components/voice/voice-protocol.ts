@@ -97,9 +97,10 @@ export function voiceHello(instanceId: string): VoiceHello {
         event_id: voiceEventId("client"),
         protocol: { min: VOICE_PROTOCOL_VERSION, max: VOICE_PROTOCOL_VERSION },
         client: { type: "web", instance_id: instanceId, label: "portfolio" },
-        // `input.audio` is the one input this client owns. `session.heartbeat` keeps the lease
-        // alive through quiet stretches by answering the gateway's ping.
-        capabilities: ["input.audio", "session.heartbeat"],
+        // `input.audio` is the one audio input this client owns; `input.text` says typed turns
+        // ride the same session. `session.heartbeat` keeps the lease alive through quiet
+        // stretches by answering the gateway's ping.
+        capabilities: ["input.audio", "input.text", "session.heartbeat"],
         connection: {
             voice_enabled: true,
             input_enabled: true,
@@ -167,6 +168,111 @@ export function decodePcm16(base64: string): Float32Array {
         output[index] = view.getInt16(index * 2, true) / 0x8000;
     }
     return output;
+}
+
+/**
+ * The greeting the panel submits once, as a `text.message`, so the agent speaks first. The
+ * gateway has no greeting event, so a text turn is the only door. The visitor never sees this
+ * line: `applyVoiceLine` drops the user final that carries it verbatim.
+ */
+export const GREETING_INSTRUCTION =
+    "Greet the visitor in one short spoken sentence, then say you can answer questions about Daniel's work.";
+
+/**
+ * A text turn. `RealtimeInputRuntime.submit` reads `event.text` and the turn joins the same
+ * session context as the microphone, so the reply is spoken and transcribed like any other.
+ * `text.message` reaches that method with no capability check (gateway
+ * `realtime-session-runtime.mjs`, checked 2026-11-21); `input.text` in the handshake advertises
+ * the turn rather than unlocking it.
+ */
+export function voiceTextMessage(text: string, eventId: string): object {
+    return { type: "text.message", event_id: eventId, text };
+}
+
+/** One line of the conversation surface. `id` is the gateway's `turnId`, and nothing else. */
+export type VoiceLine = {
+    id: string;
+    role: "user" | "assistant";
+    text: string;
+};
+
+/** Only the tail is kept; a long session still scrolls, it just cannot grow without bound. */
+const VOICE_LINE_CAP = 200;
+
+function capped(lines: VoiceLine[]): VoiceLine[] {
+    return lines.length > VOICE_LINE_CAP ? lines.slice(lines.length - VOICE_LINE_CAP) : lines;
+}
+
+/**
+ * Fold one gateway transcript event into the panel's lines. Pure and presentation-only: it
+ * never merges, reorders or invents lines across turns, and returns the same array reference
+ * whenever the event changes nothing, so a reducer can bail out of a re-render.
+ *
+ * `turnId` plus role is the key. The gateway stamps the assistant's events with the same
+ * `turnId` as the user turn they answer, so a bare `turnId` would let the reply overwrite the
+ * visitor's own line; both roles keep their own line inside the turn, in arrival order.
+ */
+export function applyVoiceLine(
+    lines: VoiceLine[],
+    event: {
+        type?: string;
+        role?: string;
+        content?: unknown;
+        turnId?: unknown;
+        replace?: boolean;
+    }
+): VoiceLine[] {
+    const { type } = event;
+    if (
+        type !== "transcript.delta" &&
+        type !== "transcript.final" &&
+        type !== "transcript.discard"
+    ) {
+        return lines;
+    }
+
+    const turnId = event.turnId;
+    if (typeof turnId !== "string" || !turnId) return lines;
+
+    // A role is never guessed: only these two words are in the contract.
+    const role = event.role;
+    if (role !== "user" && role !== "assistant") return lines;
+
+    const key = `${turnId}:${role}`;
+    const index = lines.findIndex((line) => line.id === key);
+
+    if (type === "transcript.discard") {
+        if (index === -1) return lines;
+        return [...lines.slice(0, index), ...lines.slice(index + 1)];
+    }
+
+    const { content } = event;
+    if (typeof content !== "string" || !content) return lines;
+
+    // The instruction that makes the agent speak first is not something the visitor said.
+    if (type === "transcript.final" && role === "user" && content === GREETING_INSTRUCTION) {
+        if (index === -1) return lines;
+        return [...lines.slice(0, index), ...lines.slice(index + 1)];
+    }
+
+    if (type === "transcript.final") {
+        if (index === -1) return capped([...lines, { id: key, role, text: content }]);
+        const current = lines[index];
+        if (current.text === content && current.role === role) return lines;
+        const next = lines.slice();
+        next[index] = { id: key, role, text: content };
+        return next;
+    }
+
+    // A delta grows the turn's line: replace in place when the gateway re-sends the partial,
+    // append when it sends only the new words. The line keeps the role it was created with.
+    if (index === -1) return capped([...lines, { id: key, role, text: content }]);
+    const current = lines[index];
+    const text = event.replace === true ? content : current.text + content;
+    if (text === current.text) return lines;
+    const next = lines.slice();
+    next[index] = { id: key, role: current.role, text };
+    return next;
 }
 
 export type StreamingResampler = {

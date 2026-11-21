@@ -1,13 +1,17 @@
 /**
- * One voice session: microphone first, then the gateway socket, then a teardown that gives the
- * microphone back. Everything the panel needs is a small state object pushed through
- * `onChange`; everything that ends the session arrives through `onEnded` with a reason.
+ * One session for voice and text: the socket opens first and audio follows without gating it, so
+ * a blocked speaker never costs the greeting or a typed turn. The microphone becomes a toggle on
+ * the same connection. Typed turns ride `text.message` there, so muting gives back the
+ * microphone, never the conversation. Everything the panel needs is a small state object pushed
+ * through `onChange`; transcript lines go out through `onLine`; every ending arrives through
+ * `onEnded` with a reason.
  *
  * The wire shapes live in `voice-protocol.ts`; the speaker and microphone in `voice-audio.ts`.
  */
 
-import { createVoiceAudio, VOICE_SEND_HIGH_WATER_BYTES } from "./voice-audio";
+import { createVoiceAudio, VOICE_SEND_HIGH_WATER_BYTES } from "./voice-audio.ts";
 import {
+    GREETING_INSTRUCTION,
     VOICE_SESSION_CAP_MS,
     createStreamingResampler,
     decodePcm16,
@@ -17,26 +21,49 @@ import {
     voiceHello,
     voiceProtocols,
     voiceSocketUrl,
+    voiceTextMessage,
     type VoicePhase,
-} from "./voice-protocol";
+} from "./voice-protocol.ts";
 
 export type VoiceStatus = "idle" | "active" | "ended";
 
 export type VoiceState = {
     status: VoiceStatus;
     phase: VoicePhase;
-    muted: boolean;
+    micOn: boolean;
+    soundOn: boolean;
     /** Milliseconds left in the mirrored cap; `null` until the gateway's voice front end is ready. */
     remainingMs: number | null;
+    /** One line about a non-fatal problem, such as playback that never opened. */
+    notice: string | null;
+};
+
+/**
+ * One `transcript.*` event exactly as the gateway sent it. The shape mirrors `applyVoiceLine`'s
+ * parameter in `voice-protocol.ts`; keep the two in step until that module exports one type.
+ */
+export type VoiceTranscriptEvent = {
+    type?: string;
+    role?: string;
+    content?: unknown;
+    turnId?: unknown;
+    replace?: boolean;
+    [key: string]: unknown;
 };
 
 export type VoiceEndReason = "user" | "cap" | "closed" | "error";
 
 export type VoiceSession = {
     readonly state: VoiceState;
+    /** Creates or resumes the AudioContext. Call it in the panel's click, before `start()`. */
+    openOutput(): Promise<void>;
     start(): Promise<void>;
     stop(reason?: VoiceEndReason): void;
-    setMuted(muted: boolean): void;
+    /** Turning the microphone on asks for it inside this call, so it must run in a click. */
+    setMic(on: boolean): Promise<void>;
+    setSound(on: boolean): void;
+    /** Sends one text turn on the open session; ignored until `voice.ready`. */
+    sendText(text: string): void;
 };
 
 type Options = {
@@ -45,6 +72,8 @@ type Options = {
     token: string;
     onChange(state: VoiceState): void;
     onEnded(reason: VoiceEndReason, message: string): void;
+    /** Every `transcript.*` event, unchanged. The panel owns the reducer. */
+    onLine(event: VoiceTranscriptEvent): void;
 };
 
 const END_MESSAGES: Record<VoiceEndReason, string> = {
@@ -54,6 +83,22 @@ const END_MESSAGES: Record<VoiceEndReason, string> = {
     error: "the voice session could not continue.",
 };
 
+/** A failed output is a line, never an ending: text and the transcript still work. */
+const AUDIO_NOTICE = "playback is unavailable; the transcript and typed replies still work.";
+
+/** Permission can be granted and the audio graph still fail; that is not a live microphone. */
+const MIC_NOTICE = "the microphone could not start; you can still type.";
+
+/** A refused unmute is the push-to-talk answer; playback follows the microphone down. */
+const MIC_REFUSED = "the microphone did not open; you can still type.";
+
+/** The browser's own refusals; anything else is a setup failure after permission was granted. */
+const MIC_REFUSALS = new Set(["NotAllowedError", "SecurityError", "NotFoundError"]);
+
+function isMicRefusal(error: unknown): boolean {
+    return error instanceof Error && MIC_REFUSALS.has(error.name);
+}
+
 /** Close codes the gateway uses for a connection that must not be retried. */
 const CLOSE_MESSAGES: Record<number, string> = {
     4001: "the session ended; another window took the connection.",
@@ -61,27 +106,13 @@ const CLOSE_MESSAGES: Record<number, string> = {
     4003: "this invite link is no longer valid.",
 };
 
-function microphoneMessage(error: unknown): string {
-    const name =
-        error && typeof error === "object" && "name" in error
-            ? String((error as { name?: unknown }).name)
-            : "";
-    switch (name) {
-        case "NotAllowedError":
-        case "SecurityError":
-            return "the microphone is blocked; allow it for this site and try again.";
-        case "NotFoundError":
-            return "no microphone was found.";
-        case "NotReadableError":
-            return "the microphone is busy in another app.";
-        case "NotSupportedError":
-            return "this browser cannot capture audio.";
-        default:
-            return "the microphone could not start.";
-    }
-}
-
-export function createVoiceSession({ origin, token, onChange, onEnded }: Options): VoiceSession {
+export function createVoiceSession({
+    origin,
+    token,
+    onChange,
+    onEnded,
+    onLine,
+}: Options): VoiceSession {
     const audio = createVoiceAudio();
     const resampler = createStreamingResampler();
     const sessionId = voiceEventId("session");
@@ -91,15 +122,22 @@ export function createVoiceSession({ origin, token, onChange, onEnded }: Options
     let timer: number | null = null;
     let started = false;
     let stopped = false;
-    let ready = false;
-    let muted = false;
+    let handshakeReady = false;
+    let voiceReady = false;
+    let greeted = false;
+    let micOn = false;
+    let micStarting = false;
+    /** Bumped by every microphone change, so a start that awaited past it does nothing. */
+    let micEpoch = 0;
     let inputRate = 16_000;
     let endsAt: number | null = null;
     let state: VoiceState = {
         status: "idle",
         phase: "connecting",
-        muted: false,
+        micOn: false,
+        soundOn: true,
         remainingMs: null,
+        notice: null,
     };
 
     const publish = (patch: Partial<VoiceState>) => {
@@ -107,7 +145,7 @@ export function createVoiceSession({ origin, token, onChange, onEnded }: Options
         onChange(state);
     };
 
-    const send = (event: Record<string, unknown>): boolean => {
+    const send = (event: object): boolean => {
         if (!socket || socket.readyState !== WebSocket.OPEN) return false;
         try {
             socket.send(JSON.stringify({ event_id: voiceEventId("client"), ...event }));
@@ -117,17 +155,49 @@ export function createVoiceSession({ origin, token, onChange, onEnded }: Options
         }
     };
 
+    /** A typed turn is only valid on an open socket whose voice front end is ready. */
+    const submitText = (text: string) => {
+        const trimmed = text.trim();
+        if (!trimmed || stopped) return;
+        if (!voiceReady || !socket || socket.readyState !== WebSocket.OPEN) return;
+        send(voiceTextMessage(trimmed, voiceEventId("text")));
+    };
+
+    /** The agent speaks first; whichever handshake arrives second sends the one greeting. */
+    const maybeGreet = () => {
+        if (greeted || !handshakeReady || !voiceReady) return;
+        greeted = true;
+        submitText(GREETING_INSTRUCTION);
+    };
+
+    const onSamples = (samples: Float32Array) => {
+        if (!micOn || stopped || !handshakeReady) return;
+        const pcm = resampler.process(samples, audio.sampleRate, inputRate);
+        if (!pcm.length) return;
+        // Live audio: drop a chunk while the socket is congested instead of queuing it.
+        if (socket && socket.bufferedAmount > VOICE_SEND_HIGH_WATER_BYTES) return;
+        send({ type: "input_audio_buffer.append", audio: pcm16Base64(pcm) });
+    };
+
     /** Every ending — user, cap, close, error — runs exactly this teardown once. */
     function finish(reason: VoiceEndReason, message: string) {
         if (stopped) return;
         stopped = true;
         if (timer !== null) window.clearInterval(timer);
         timer = null;
-        ready = false;
+        handshakeReady = false;
+        voiceReady = false;
+        greeted = false;
+        micEpoch += 1;
+        micStarting = false;
 
-        if (socket?.readyState === WebSocket.OPEN) {
-            // Release input before the socket goes: the gateway keeps the lease until told.
-            send({ type: "mute" });
+        // Release input before the socket goes: the gateway keeps the lease until told. A socket
+        // still CONNECTING is aborted here too, so an Escape during `connecting` leaves no orphan
+        // connection whose late `onopen` could send anything.
+        if (socket) {
+            if (socket.readyState === WebSocket.OPEN && micOn) send({ type: "mute" });
+            audio.stopMicrophone();
+            audio.stopPlayback();
             try {
                 socket.close(1000, "session ended");
             } catch {
@@ -136,7 +206,7 @@ export function createVoiceSession({ origin, token, onChange, onEnded }: Options
         }
         socket = null;
         audio.close();
-        publish({ status: "ended", muted: false });
+        publish({ status: "ended", micOn: false, soundOn: false });
         onEnded(reason, message);
     }
 
@@ -160,14 +230,19 @@ export function createVoiceSession({ origin, token, onChange, onEnded }: Options
             return;
         }
         if (!event || typeof event.type !== "string") return;
+        const type = event.type;
 
-        switch (event.type) {
+        // Every transcript line goes to the panel as it arrived; the reducer lives there.
+        if (type.startsWith("transcript.")) onLine(event as VoiceTranscriptEvent);
+
+        switch (type) {
             case "session.ready":
-                ready = true;
-                // The gateway ignores audio until the client claims input. A mute pressed while
-                // the handshake was in flight is claimed now, not lost.
-                send({ type: muted ? "mute" : "unmute" });
+                handshakeReady = true;
+                // The gateway ignores audio until the client claims input. A microphone turned
+                // on during `connecting` is claimed now, not lost.
+                if (micOn) send({ type: "unmute" });
                 publish({ phase: "listening" });
+                maybeGreet();
                 break;
             case "session.ping":
                 if (typeof event.event_id === "string") {
@@ -178,11 +253,13 @@ export function createVoiceSession({ origin, token, onChange, onEnded }: Options
                 const rate = Number(event.inputSampleRate);
                 if (Number.isFinite(rate) && rate > 0) inputRate = rate;
                 resampler.reset();
+                voiceReady = true;
                 if (endsAt === null) {
                     endsAt = Date.now() + VOICE_SESSION_CAP_MS;
                     timer = window.setInterval(tick, 1000);
                     publish({ remainingMs: VOICE_SESSION_CAP_MS });
                 }
+                maybeGreet();
                 break;
             }
             case "voice.state": {
@@ -234,30 +311,21 @@ export function createVoiceSession({ origin, token, onChange, onEnded }: Options
             return state;
         },
 
+        async openOutput() {
+            if (stopped) return;
+            await audio.openOutput();
+        },
+
         async start() {
             if (started || stopped) return;
             started = true;
-            publish({ status: "active", phase: "connecting", muted: false, remainingMs: null });
-
-            try {
-                await audio.startMicrophone((samples) => {
-                    if (muted || stopped || !ready) return;
-                    const pcm = resampler.process(samples, audio.sampleRate, inputRate);
-                    if (!pcm.length) return;
-                    // Live audio: drop a chunk while the socket is congested instead of queuing it.
-                    if (socket && socket.bufferedAmount > VOICE_SEND_HIGH_WATER_BYTES) return;
-                    send({ type: "input_audio_buffer.append", audio: pcm16Base64(pcm) });
-                });
-            } catch (error) {
-                finish("error", microphoneMessage(error));
-                return;
-            }
-
-            // Closed while the permission prompt was open.
-            if (stopped) {
-                audio.close();
-                return;
-            }
+            publish({
+                status: "active",
+                phase: "connecting",
+                micOn: false,
+                soundOn: true,
+                remainingMs: null,
+            });
 
             const url = voiceSocketUrl(origin, sessionId);
             if (!url) {
@@ -274,6 +342,8 @@ export function createVoiceSession({ origin, token, onChange, onEnded }: Options
             }
             socket = connection;
             connection.onopen = () => {
+                // A stop that beat the upgrade already closed this socket; hello is not sent.
+                if (stopped) return;
                 send(voiceHello(instanceId));
             };
             connection.onmessage = (message: MessageEvent) => handleMessage(message.data);
@@ -291,17 +361,77 @@ export function createVoiceSession({ origin, token, onChange, onEnded }: Options
             connection.onerror = () => {
                 // A failed upgrade is followed by `close`, which ends the session.
             };
+
+            // The socket is the conversation; audio is only its voice. A blocked, slow or refused
+            // output must never delay hello, the greeting, the transcript or a typed turn. The
+            // catch records one line and keeps the session up.
+            void audio.openOutput().catch(() => {
+                if (stopped) return;
+                audio.setOutputEnabled(false);
+                publish({ soundOn: false, notice: AUDIO_NOTICE });
+            });
         },
 
         stop,
 
-        setMuted(next: boolean) {
+        async setMic(on) {
             if (stopped) return;
-            muted = next;
-            // Before the handshake lands this only records the intent: a mute during
-            // `connecting` must not be forgotten.
-            if (ready) send({ type: next ? "mute" : "unmute" });
-            publish({ muted: next });
+            if (on === micOn && !micStarting) return;
+            if (on && micStarting) return;
+            micEpoch += 1;
+            const epoch = micEpoch;
+
+            if (!on) {
+                micStarting = false;
+                micOn = false;
+                publish({ micOn: false });
+                if (handshakeReady) send({ type: "mute" });
+                audio.stopMicrophone();
+                resampler.reset();
+                return;
+            }
+
+            micStarting = true;
+            try {
+                // The click is the gesture, so the permission prompt opens inside this call.
+                await audio.startMicrophone(onSamples);
+            } catch (error) {
+                // A superseded attempt owns nothing: an earlier prompt that ends after a mute or
+                // a newer unmute must not report, warn, or claim the current microphone.
+                if (epoch !== micEpoch || stopped) return;
+                micOn = false;
+                if (isMicRefusal(error)) {
+                    // The unmute asked for voice and got none: playback goes down with the
+                    // microphone in this same press, and the panel reads one line.
+                    audio.setOutputEnabled(false);
+                    publish({ micOn: false, soundOn: false, notice: MIC_REFUSED });
+                    return;
+                }
+                // Permission was granted and the graph failed: that is news, but playback stays
+                // exactly as the visitor left it.
+                publish({ micOn: false, notice: MIC_NOTICE });
+                return;
+            } finally {
+                if (epoch === micEpoch) micStarting = false;
+            }
+            if (epoch !== micEpoch || stopped) return;
+            micOn = true;
+            publish({
+                micOn: true,
+                notice:
+                    state.notice === MIC_NOTICE || state.notice === MIC_REFUSED
+                        ? null
+                        : state.notice,
+            });
+            if (handshakeReady) send({ type: "unmute" });
         },
+
+        setSound(on) {
+            if (stopped) return;
+            audio.setOutputEnabled(on);
+            publish({ soundOn: on });
+        },
+
+        sendText: submitText,
     };
 }

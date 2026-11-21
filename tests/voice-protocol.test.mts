@@ -2,8 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+    GREETING_INSTRUCTION,
     VOICE_PROTOCOL_VERSION,
     VOICE_WS_PROTOCOL,
+    applyVoiceLine,
     createStreamingResampler,
     decodePcm16,
     formatRemaining,
@@ -16,7 +18,9 @@ import {
     voiceHello,
     voiceProtocols,
     voiceSocketUrl,
+    voiceTextMessage,
 } from "../src/app/components/voice/voice-protocol.ts";
+import type { VoiceLine } from "../src/app/components/voice/voice-protocol.ts";
 
 const TOKEN = "aB3_x-9zLmQ7pR2sT5vW8yK1nH4jG6dF";
 
@@ -71,7 +75,7 @@ test("the token rides in a secondary subprotocol and nothing else", () => {
     assert.throws(() => voiceProtocols("short"), TypeError);
 });
 
-test("the handshake asks for audio input and a heartbeat, and nothing more", () => {
+test("the handshake advertises audio input, text input and a heartbeat", () => {
     const hello = voiceHello("instance_1");
     assert.equal(hello.type, "session.hello");
     assert.match(hello.event_id, /^evt_client_/);
@@ -84,7 +88,7 @@ test("the handshake asks for audio input and a heartbeat, and nothing more", () 
         instance_id: "instance_1",
         label: "portfolio",
     });
-    assert.deepEqual(hello.capabilities, ["input.audio", "session.heartbeat"]);
+    assert.deepEqual(hello.capabilities, ["input.audio", "input.text", "session.heartbeat"]);
     assert.deepEqual(hello.connection, {
         voice_enabled: true,
         input_enabled: true,
@@ -155,4 +159,282 @@ test("matching rates pass through untouched, and a reset forgets the stream", ()
     assert.deepEqual(Array.from(resampler.process(input, 16_000, 16_000)), [0.5, 0.25, 0.75]);
     assert.equal(resampler.flush().length, 0);
     assert.throws(() => resampler.process(input, 0, 16_000), RangeError);
+});
+
+const GREETING_FINAL = {
+    type: "transcript.final",
+    role: "user",
+    content: GREETING_INSTRUCTION,
+    turnId: "voice-1-1",
+};
+
+test("the greeting instruction never shows as a user line", () => {
+    const empty: VoiceLine[] = [];
+    assert.equal(applyVoiceLine(empty, GREETING_FINAL), empty);
+
+    const partial: VoiceLine[] = [{ id: "voice-1-1:user", role: "user", text: "Greet the vis" }];
+    assert.deepEqual(applyVoiceLine(partial, GREETING_FINAL), []);
+
+    // The drop is exact and user-only: any other text, or any other role, is a real line.
+    assert.equal(
+        applyVoiceLine([], { ...GREETING_FINAL, content: `${GREETING_INSTRUCTION} ` }).length,
+        1
+    );
+    assert.equal(applyVoiceLine([], { ...GREETING_FINAL, role: "assistant" }).length, 1);
+});
+
+test("a replace delta rewrites the turn's line where it sits", () => {
+    const first = applyVoiceLine([], {
+        type: "transcript.delta",
+        role: "user",
+        turnId: "t1",
+        content: "hel",
+        replace: true,
+    });
+    assert.deepEqual(first, [{ id: "t1:user", role: "user", text: "hel" }]);
+
+    const second = applyVoiceLine(first, {
+        type: "transcript.delta",
+        role: "user",
+        turnId: "t1",
+        content: "hello there",
+        replace: true,
+    });
+    assert.equal(second.length, 1);
+    assert.equal(second[0].text, "hello there");
+
+    // Same words again: nothing changed, so the same array comes back.
+    assert.equal(
+        applyVoiceLine(second, {
+            type: "transcript.delta",
+            role: "user",
+            turnId: "t1",
+            content: "hello there",
+            replace: true,
+        }),
+        second
+    );
+});
+
+test("a delta without replace grows the one line for that turn", () => {
+    let lines = applyVoiceLine([], {
+        type: "transcript.delta",
+        role: "user",
+        turnId: "t1",
+        content: "hello ",
+    });
+    lines = applyVoiceLine(lines, {
+        type: "transcript.delta",
+        role: "user",
+        turnId: "t1",
+        content: "there",
+    });
+    assert.equal(lines.length, 1);
+    assert.equal(lines[0].text, "hello there");
+});
+
+test("assistant deltas append and separate turns stay apart", () => {
+    let lines = applyVoiceLine([], {
+        type: "transcript.delta",
+        role: "assistant",
+        turnId: "t2",
+        content: "hel",
+    });
+    lines = applyVoiceLine(lines, {
+        type: "transcript.delta",
+        role: "assistant",
+        turnId: "t2",
+        content: "lo",
+    });
+    assert.deepEqual(lines, [{ id: "t2:assistant", role: "assistant", text: "hello" }]);
+
+    const next = applyVoiceLine(lines, {
+        type: "transcript.delta",
+        role: "user",
+        turnId: "t3",
+        content: "and another turn",
+    });
+    assert.equal(next.length, 2);
+    assert.deepEqual(
+        next.map((line) => line.id),
+        ["t2:assistant", "t3:user"]
+    );
+    assert.equal(lines.length, 1);
+});
+
+test("one turn holds both roles, and neither final overwrites the other", () => {
+    let lines = applyVoiceLine([], {
+        type: "transcript.final",
+        role: "user",
+        turnId: "t4",
+        content: "how do i reach you?",
+    });
+    lines = applyVoiceLine(lines, {
+        type: "transcript.final",
+        role: "assistant",
+        turnId: "t4",
+        content: "the contact form",
+    });
+    assert.deepEqual(lines, [
+        { id: "t4:user", role: "user", text: "how do i reach you?" },
+        { id: "t4:assistant", role: "assistant", text: "the contact form" },
+    ]);
+
+    // Each final revisits only its own line.
+    const userAgain = applyVoiceLine(lines, {
+        type: "transcript.final",
+        role: "user",
+        turnId: "t4",
+        content: "how do i reach you, please?",
+    });
+    assert.equal(userAgain.length, 2);
+    assert.equal(userAgain[0].text, "how do i reach you, please?");
+    assert.equal(userAgain[1].text, "the contact form");
+});
+
+test("a replace delta refreshes the user line while an assistant delta appends to its own", () => {
+    let lines = applyVoiceLine([], {
+        type: "transcript.delta",
+        role: "user",
+        turnId: "t5",
+        content: "how do i",
+        replace: true,
+    });
+    lines = applyVoiceLine(lines, {
+        type: "transcript.delta",
+        role: "assistant",
+        turnId: "t5",
+        content: "the contact form",
+    });
+    lines = applyVoiceLine(lines, {
+        type: "transcript.delta",
+        role: "user",
+        turnId: "t5",
+        content: "how do i reach you?",
+        replace: true,
+    });
+    lines = applyVoiceLine(lines, {
+        type: "transcript.delta",
+        role: "assistant",
+        turnId: "t5",
+        content: ", or the mailto link",
+    });
+    assert.deepEqual(lines, [
+        { id: "t5:user", role: "user", text: "how do i reach you?" },
+        { id: "t5:assistant", role: "assistant", text: "the contact form, or the mailto link" },
+    ]);
+});
+
+test("a final sets the turn's line, creates it when absent, and removes it when empty", () => {
+    const partial: VoiceLine[] = [{ id: "t1:user", role: "user", text: "how do i" }];
+    assert.deepEqual(
+        applyVoiceLine(partial, {
+            type: "transcript.final",
+            role: "user",
+            turnId: "t1",
+            content: "how do i reach you?",
+        }),
+        [{ id: "t1:user", role: "user", text: "how do i reach you?" }]
+    );
+
+    assert.deepEqual(
+        applyVoiceLine([], {
+            type: "transcript.final",
+            role: "assistant",
+            turnId: "t9",
+            content: "the contact form",
+        }),
+        [{ id: "t9:assistant", role: "assistant", text: "the contact form" }]
+    );
+
+    assert.equal(
+        applyVoiceLine(partial, {
+            type: "transcript.final",
+            role: "user",
+            turnId: "t1",
+            content: "how do i",
+        }),
+        partial
+    );
+});
+
+test("discard removes that turn's line and leaves its neighbours", () => {
+    const lines: VoiceLine[] = [
+        { id: "t1:user", role: "user", text: "one" },
+        { id: "t2:user", role: "user", text: "two" },
+        { id: "t3:assistant", role: "assistant", text: "three" },
+    ];
+    assert.deepEqual(
+        applyVoiceLine(lines, { type: "transcript.discard", role: "user", turnId: "t2" }),
+        [
+            { id: "t1:user", role: "user", text: "one" },
+            { id: "t3:assistant", role: "assistant", text: "three" },
+        ]
+    );
+    assert.equal(
+        applyVoiceLine(lines, { type: "transcript.discard", role: "user", turnId: "nope" }),
+        lines
+    );
+});
+
+test("an event that changes nothing returns the array itself", () => {
+    const lines: VoiceLine[] = [
+        { id: "t1:user", role: "user", text: "one" },
+        { id: "t2:assistant", role: "assistant", text: "two" },
+    ];
+    const noops = [
+        { type: "transcript.nope", role: "user", content: "x", turnId: "t3" },
+        { type: "transcript.delta", role: "user", content: "x" },
+        { type: "transcript.delta", role: "user", content: "x", turnId: "" },
+        { type: "transcript.delta", role: "user", content: "x", turnId: 42 },
+        { type: "transcript.delta", role: undefined, content: "x", turnId: "t3" },
+        { type: "transcript.delta", role: "system", content: "x", turnId: "t3" },
+        { type: "transcript.final", content: "x", turnId: "t3" },
+        { type: "transcript.delta", role: "assistant", content: "", turnId: "t3" },
+        { type: "transcript.final", role: "assistant", content: undefined, turnId: "t3" },
+    ];
+    for (const event of noops) {
+        assert.equal(applyVoiceLine(lines, event), lines, JSON.stringify(event));
+    }
+});
+
+test("only the last 200 lines survive", () => {
+    let lines: VoiceLine[] = [];
+    for (let index = 0; index < 205; index += 1) {
+        lines = applyVoiceLine(lines, {
+            type: "transcript.final",
+            role: "user",
+            turnId: `t${index}`,
+            content: `line ${index}`,
+        });
+    }
+    assert.equal(lines.length, 200);
+    assert.equal(lines[0].id, "t5:user");
+    assert.equal(lines[199].id, "t204:user");
+});
+
+test("a returned array never mutates the one passed in", () => {
+    const input: VoiceLine[] = [{ id: "t1:user", role: "user", text: "one" }];
+    const snapshot = structuredClone(input);
+    const next = applyVoiceLine(input, {
+        type: "transcript.delta",
+        role: "user",
+        turnId: "t1",
+        content: "!",
+    });
+    assert.notEqual(next, input);
+    assert.equal(next[0].text, "one!");
+    assert.deepEqual(input, snapshot);
+});
+
+test("the greeting turn is one text message and says what it is", () => {
+    assert.deepEqual(voiceTextMessage("hello", "evt_1"), {
+        type: "text.message",
+        event_id: "evt_1",
+        text: "hello",
+    });
+    assert.equal(
+        GREETING_INSTRUCTION,
+        "Greet the visitor in one short spoken sentence, then say you can answer questions about Daniel's work."
+    );
 });
